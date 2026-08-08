@@ -71,6 +71,10 @@ add_executable(concurrency_benchmark
   ${GOOGLE_SPEED_CC}
 )
 
+add_executable(schema_evolution_benchmark
+  src/schema_evolution_benchmark.cc
+)
+
 target_include_directories(encode_benchmark PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${GENERATED_DIR}/google_speed
@@ -149,6 +153,14 @@ target_link_libraries(concurrency_benchmark PRIVATE
   protobuf::libprotobuf
 )
 
+target_include_directories(schema_evolution_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(schema_evolution_benchmark PRIVATE
+  CURL::libcurl
+)
+
 target_compile_options(encode_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(schema_registry_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(kafka_producer_benchmark PRIVATE -O3 -march=native -DNDEBUG)
@@ -156,6 +168,7 @@ target_compile_options(representation_benchmark PRIVATE -O3 -march=native -DNDEB
 target_compile_options(latency_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(distribution_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(concurrency_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+target_compile_options(schema_evolution_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(encode_benchmark PRIVATE -Wall -Wextra -Wpedantic)
@@ -165,4 +178,5 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(latency_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(distribution_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(concurrency_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(schema_evolution_benchmark PRIVATE -Wall -Wextra -Wpedantic)
 endif()

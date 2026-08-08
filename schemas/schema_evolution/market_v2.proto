@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package benchmark.google_speed;
+
+// v2 adds an optional market venue field while preserving the v1 fields and
+// the same fully-qualified message name for Schema Registry compatibility.
+message OneStringTenInt64 {
+  string symbol = 1;
+  int64 value_01 = 2;
+  int64 value_02 = 3;
+  int64 value_03 = 4;
+  int64 value_04 = 5;
+  int64 value_05 = 6;
+  int64 value_06 = 7;
+  int64 value_07 = 8;
+  int64 value_08 = 9;
+  int64 value_09 = 10;
+  int64 value_10 = 11;
+  string venue = 12;
+}
+
+message OneStringTenDecimal {
+  string symbol = 1;
+  string decimal_01 = 2;
+  string decimal_02 = 3;
+  string decimal_03 = 4;
+  string decimal_04 = 5;
+  string decimal_05 = 6;
+  string decimal_06 = 7;
+  string decimal_07 = 8;
+  string decimal_08 = 9;
+  string decimal_09 = 10;
+  string decimal_10 = 11;
+}
+
+message TenStringFiftyDecimal {
+  string symbol_01 = 1;
+  string symbol_02 = 2;
+  string symbol_03 = 3;
+  string symbol_04 = 4;
+  string symbol_05 = 5;
+  string symbol_06 = 6;
+  string symbol_07 = 7;
+  string symbol_08 = 8;
+  string symbol_09 = 9;
+  string symbol_10 = 10;
+  string decimal_01 = 11;
+  string decimal_02 = 12;
+  string decimal_03 = 13;
+  string decimal_04 = 14;
+  string decimal_05 = 15;
+  string decimal_06 = 16;
+  string decimal_07 = 17;
+  string decimal_08 = 18;
+  string decimal_09 = 19;
+  string decimal_10 = 20;
+  string decimal_11 = 21;
+  string decimal_12 = 22;
+  string decimal_13 = 23;
+  string decimal_14 = 24;
+  string decimal_15 = 25;
+  string decimal_16 = 26;
+  string decimal_17 = 27;
+  string decimal_18 = 28;
+  string decimal_19 = 29;
+  string decimal_20 = 30;
+  string decimal_21 = 31;
+  string decimal_22 = 32;
+  string decimal_23 = 33;
+  string decimal_24 = 34;
+  string decimal_25 = 35;
+  string decimal_26 = 36;
+  string decimal_27 = 37;
+  string decimal_28 = 38;
+  string decimal_29 = 39;
+  string decimal_30 = 40;
+  string decimal_31 = 41;
+  string decimal_32 = 42;
+  string decimal_33 = 43;
+  string decimal_34 = 44;
+  string decimal_35 = 45;
+  string decimal_36 = 46;
+  string decimal_37 = 47;
+  string decimal_38 = 48;
+  string decimal_39 = 49;
+  string decimal_40 = 50;
+  string decimal_41 = 51;
+  string decimal_42 = 52;
+  string decimal_43 = 53;
+  string decimal_44 = 54;
+  string decimal_45 = 55;
+  string decimal_46 = 56;
+  string decimal_47 = 57;
+  string decimal_48 = 58;
+  string decimal_49 = 59;
+  string decimal_50 = 60;
+}

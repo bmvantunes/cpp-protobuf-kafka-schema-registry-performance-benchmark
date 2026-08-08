@@ -3,16 +3,19 @@
 #include <curl/curl.h>
 
 #include <array>
+#include <barrier>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -115,6 +118,7 @@ struct Config {
   std::uint64_t warmup_iterations = 10'000;
   std::uint32_t network_repetitions = 10;
   std::string registry_url = "http://schema-registry:8081";
+  std::string failure_url = "http://schema-registry:65530";
   std::string csv_path = "/work/results/schema_registry_raw.csv";
   std::string metadata_path = "/work/results/schema_registry_metadata.txt";
 };
@@ -206,13 +210,13 @@ size_t write_body(char* data, size_t size, size_t count, void* userdata) {
 }
 
 HttpResult http_request(CURL* curl, const std::string& url, const char* method, const std::string& body,
-                        struct curl_slist* headers) {
+                        struct curl_slist* headers, long timeout_ms = 30'000L) {
   HttpResult result;
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_body);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result.body);
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 30'000L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   if (std::strcmp(method, "POST") == 0) {
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 0L);
@@ -300,6 +304,105 @@ void run_network_rows(Csv& csv, const Config& config, const std::string& registr
   curl_slist_free_all(headers);
 }
 
+void write_control_row(Csv& csv, const char* api, const char* test_case, std::uint32_t repetition,
+                       double elapsed, std::size_t bytes, long status) {
+  csv.file << "registry,confluent_schema_registry,http," << api << ',' << test_case << ',' << repetition
+           << ",1," << bytes << ',' << std::fixed << std::setprecision(3) << elapsed << ',' << elapsed << ','
+           << (1'000'000'000.0 / elapsed) << ',' << status << '\n';
+}
+
+void run_exceptional_paths(Csv& csv, const Config& config, const std::string& registry_url,
+                           const std::string& failure_url, const std::string& subject) {
+  struct curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/vnd.schemaregistry.v1+json");
+  auto run_request_path = [&](const char* api, const std::string& url, const char* expected_case, long timeout_ms) {
+    for (std::uint32_t repetition = 1; repetition <= config.network_repetitions; ++repetition) {
+      CURL* curl = curl_easy_init();
+      if (curl == nullptr) throw std::runtime_error("curl_easy_init failed");
+      const auto start = Clock::now();
+      long status = 0;
+      std::size_t bytes = 0;
+      try {
+        const auto result = http_request(curl, url, "GET", "", headers, timeout_ms);
+        status = result.status;
+        bytes = result.body.size();
+      } catch (...) {
+        status = 0;
+      }
+      const auto elapsed = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
+      write_control_row(csv, api, expected_case, repetition, elapsed, bytes, status);
+      curl_easy_cleanup(curl);
+    }
+  };
+
+  run_request_path("cache_miss_404", registry_url + "/subjects/" + subject + "_missing/versions/latest",
+                   "schema_registry_cache_miss", 5'000L);
+  run_request_path("registry_unavailable", failure_url + "/subjects/unavailable/versions/latest",
+                   "schema_registry_unavailable", 500L);
+
+  for (std::uint32_t repetition = 1; repetition <= config.network_repetitions; ++repetition) {
+    CURL* failed = curl_easy_init();
+    CURL* successful = curl_easy_init();
+    if (failed == nullptr || successful == nullptr) throw std::runtime_error("curl_easy_init failed");
+    const auto start = Clock::now();
+    long status = 0;
+    std::size_t bytes = 0;
+    try {
+      http_request(failed, failure_url + "/subjects/retry/versions/latest", "GET", "", headers, 500L);
+    } catch (...) {
+      // The first failure is intentional; continue to exercise recovery.
+    }
+    try {
+      const auto result = http_request(successful, registry_url + "/subjects/" + subject + "/versions/latest", "GET", "", headers);
+      status = result.status;
+      bytes = result.body.size();
+    } catch (...) {
+      status = 0;
+    }
+    const auto elapsed = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
+    write_control_row(csv, "retry_failure_then_success", "schema_registry_retry", repetition, elapsed, bytes, status);
+    curl_easy_cleanup(failed);
+    curl_easy_cleanup(successful);
+  }
+  curl_slist_free_all(headers);
+}
+
+void run_concurrent_registration(Csv& csv, const Config& config, const std::string& registry_url,
+                                 const std::string& subject, const std::string& schema) {
+  std::mutex csv_mutex;
+  std::barrier start_barrier(static_cast<std::ptrdiff_t>(config.network_repetitions + 1));
+  std::vector<std::thread> workers;
+  workers.reserve(config.network_repetitions);
+  for (std::uint32_t repetition = 1; repetition <= config.network_repetitions; ++repetition) {
+    workers.emplace_back([&, repetition] {
+      struct curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/vnd.schemaregistry.v1+json");
+      CURL* curl = curl_easy_init();
+      if (curl == nullptr) throw std::runtime_error("curl_easy_init failed");
+      const auto current_subject = subject + "_concurrent_" + std::to_string(repetition);
+      start_barrier.arrive_and_wait();
+      const auto start = Clock::now();
+      long status = 0;
+      std::size_t bytes = 0;
+      try {
+        const auto result = http_request(curl, registry_url + "/subjects/" + current_subject + "/versions", "POST",
+                                         registration_body(schema), headers);
+        status = result.status;
+        bytes = result.body.size();
+      } catch (...) {
+        status = 0;
+      }
+      const auto elapsed = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
+      {
+        std::lock_guard lock(csv_mutex);
+        write_control_row(csv, "concurrent_registration", "schema_registry_concurrent_register", repetition, elapsed, bytes, status);
+      }
+      curl_easy_cleanup(curl);
+      curl_slist_free_all(headers);
+    });
+  }
+  start_barrier.arrive_and_wait();
+  for (auto& worker : workers) worker.join();
+}
+
 Config parse_args(int argc, char** argv) {
   Config config;
   for (int i = 1; i < argc; ++i) {
@@ -313,6 +416,7 @@ Config parse_args(int argc, char** argv) {
     else if (arg == "--warmup-iterations") config.warmup_iterations = std::stoull(next());
     else if (arg == "--network-repetitions") config.network_repetitions = static_cast<std::uint32_t>(std::stoul(next()));
     else if (arg == "--registry-url") config.registry_url = next();
+    else if (arg == "--failure-url") config.failure_url = next();
     else if (arg == "--csv") config.csv_path = next();
     else if (arg == "--metadata") config.metadata_path = next();
     else throw std::runtime_error("unknown argument: " + arg);
@@ -339,6 +443,7 @@ void write_metadata(const Config& config) {
   metadata << "network_repetitions=" << config.network_repetitions << '\n';
   metadata << "network_iterations_per_repetition=1\n";
   metadata << "registry_url=" << config.registry_url << '\n';
+  metadata << "failure_url=" << config.failure_url << '\n';
   metadata << "confluent_protobuf_prefix_bytes=6\n";
   metadata << "cold_network_paths_are_not_1m_by_design=true\n";
 }
@@ -369,6 +474,8 @@ int main(int argc, char** argv) {
     run_network_rows(csv, config, config.registry_url, base_subject, schema, false, false);
     run_network_rows(csv, config, config.registry_url, base_subject, schema, true, false);
     run_network_rows(csv, config, config.registry_url, base_subject, schema, false, true);
+    run_exceptional_paths(csv, config, config.registry_url, config.failure_url, base_subject);
+    run_concurrent_registration(csv, config, config.registry_url, base_subject, schema);
 
     curl_global_cleanup();
     std::cerr << "Schema Registry benchmark complete: " << config.csv_path << '\n';

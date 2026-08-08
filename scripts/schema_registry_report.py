@@ -60,6 +60,7 @@ def network_summary(rows):
         "min": min(values),
         "max": max(values),
         "rps": 1_000_000_000 / statistics.mean(values),
+        "statuses": ", ".join(sorted(set(row["checksum"] for row in rows))),
     }
 
 
@@ -142,12 +143,12 @@ def main():
         "",
         "These measurements include HTTP request/response and Registry processing. `registry_lookup_keepalive` means a keep-alive HTTP lookup; it is not a local schema-ID cache hit. The local cached-ID paths are the steady-state framing rows above. All live rows are control-plane latency measurements, not per-message serializer benchmarks.",
         "",
-        "| Path | Reps | Median ns | Mean ns | p95 ns | Min ns | Max ns | Requests/sec |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| Path | Reps | Status/result | Median ns | Mean ns | p95 ns | Min ns | Max ns | Requests/sec |",
+        "|---|---:|---|---:|---:|---:|---:|---:|---:|",
     ]
     for key, rows in sorted(network_groups.items()):
         summary = network_summary(rows)
-        lines.append(f"| {key[0]} | {summary['repetitions']} | {number(summary['median'])} | {number(summary['mean'])} | {number(summary['p95'])} | {number(summary['min'])} | {number(summary['max'])} | {number(summary['rps'])} |")
+        lines.append(f"| {key[0]} | {summary['repetitions']} | {summary['statuses']} | {number(summary['median'])} | {number(summary['mean'])} | {number(summary['p95'])} | {number(summary['min'])} | {number(summary['max'])} | {number(summary['rps'])} |")
 
     lines += [
         "",
