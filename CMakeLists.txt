@@ -1,0 +1,63 @@
+cmake_minimum_required(VERSION 3.24)
+project(encoding_benchmark LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+
+find_package(Protobuf REQUIRED)
+find_package(Boost REQUIRED COMPONENTS json)
+find_package(nlohmann_json REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
+
+find_path(PROTOBUF_C_INCLUDE_DIR protobuf-c/protobuf-c.h REQUIRED)
+find_library(PROTOBUF_C_LIBRARY protobuf-c REQUIRED)
+find_path(YYJSON_INCLUDE_DIR yyjson.h REQUIRED)
+find_library(YYJSON_LIBRARY yyjson REQUIRED)
+
+set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+set(GOOGLE_SPEED_CC ${GENERATED_DIR}/google_speed/google_speed/market.pb.cc)
+set(GOOGLE_CODESIZE_CC ${GENERATED_DIR}/google_codesize/google_codesize/market.pb.cc)
+set(GOOGLE_LITE_CC ${GENERATED_DIR}/google_lite/google_lite/market.pb.cc)
+set(PROTOBUF_C_C ${GENERATED_DIR}/protobuf_c/protobuf_c/market.pb-c.c)
+
+foreach(required_file IN ITEMS ${GOOGLE_SPEED_CC} ${GOOGLE_CODESIZE_CC} ${GOOGLE_LITE_CC} ${PROTOBUF_C_C})
+  if(NOT EXISTS ${required_file})
+    message(FATAL_ERROR "Missing generated source ${required_file}; run buf generate first")
+  endif()
+endforeach()
+
+add_executable(encode_benchmark
+  src/encode_benchmark.cc
+  ${GOOGLE_SPEED_CC}
+  ${GOOGLE_CODESIZE_CC}
+  ${GOOGLE_LITE_CC}
+  ${PROTOBUF_C_C}
+)
+
+target_include_directories(encode_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${GENERATED_DIR}/google_speed
+  ${GENERATED_DIR}/google_codesize
+  ${GENERATED_DIR}/google_lite
+  ${GENERATED_DIR}/protobuf_c
+  ${PROTOBUF_C_INCLUDE_DIR}
+  ${YYJSON_INCLUDE_DIR}
+)
+
+target_link_libraries(encode_benchmark PRIVATE
+  protobuf::libprotobuf
+  protobuf::libprotobuf-lite
+  ${PROTOBUF_C_LIBRARY}
+  Boost::json
+  nlohmann_json::nlohmann_json
+  JsonCpp::JsonCpp
+  ${YYJSON_LIBRARY}
+)
+
+target_compile_options(encode_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(encode_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+endif()

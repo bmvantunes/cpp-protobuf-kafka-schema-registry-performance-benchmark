@@ -41,6 +41,8 @@
 
 # Build directories
 build/
+generated/
+results/
 Build/
 build-*/
 
