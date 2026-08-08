@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package benchmark.representations;
+
+// These messages use a fixed decimal scale of 8 places for the integer and
+// binary representations. The scale is schema-level metadata, so it is not
+// repeated in every field. The string message retains the exact text form.
+message OneStringTenDecimalScaledSint64 {
+  string symbol = 1;
+  sint64 decimal_01 = 2;
+  sint64 decimal_02 = 3;
+  sint64 decimal_03 = 4;
+  sint64 decimal_04 = 5;
+  sint64 decimal_05 = 6;
+  sint64 decimal_06 = 7;
+  sint64 decimal_07 = 8;
+  sint64 decimal_08 = 9;
+  sint64 decimal_09 = 10;
+  sint64 decimal_10 = 11;
+}
+
+message OneStringTenDecimalFixed64 {
+  string symbol = 1;
+  fixed64 decimal_01 = 2;
+  fixed64 decimal_02 = 3;
+  fixed64 decimal_03 = 4;
+  fixed64 decimal_04 = 5;
+  fixed64 decimal_05 = 6;
+  fixed64 decimal_06 = 7;
+  fixed64 decimal_07 = 8;
+  fixed64 decimal_08 = 9;
+  fixed64 decimal_09 = 10;
+  fixed64 decimal_10 = 11;
+}
+
+message OneStringTenDecimalBytes128 {
+  string symbol = 1;
+  bytes decimal_01 = 2;
+  bytes decimal_02 = 3;
+  bytes decimal_03 = 4;
+  bytes decimal_04 = 5;
+  bytes decimal_05 = 6;
+  bytes decimal_06 = 7;
+  bytes decimal_07 = 8;
+  bytes decimal_08 = 9;
+  bytes decimal_09 = 10;
+  bytes decimal_10 = 11;
+}

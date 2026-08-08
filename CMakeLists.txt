@@ -24,8 +24,9 @@ set(GOOGLE_SPEED_CC ${GENERATED_DIR}/google_speed/google_speed/market.pb.cc)
 set(GOOGLE_CODESIZE_CC ${GENERATED_DIR}/google_codesize/google_codesize/market.pb.cc)
 set(GOOGLE_LITE_CC ${GENERATED_DIR}/google_lite/google_lite/market.pb.cc)
 set(PROTOBUF_C_C ${GENERATED_DIR}/protobuf_c/protobuf_c/market.pb-c.c)
+set(REPRESENTATIONS_CC ${GENERATED_DIR}/representations/representations/decimal.pb.cc)
 
-foreach(required_file IN ITEMS ${GOOGLE_SPEED_CC} ${GOOGLE_CODESIZE_CC} ${GOOGLE_LITE_CC} ${PROTOBUF_C_C})
+foreach(required_file IN ITEMS ${GOOGLE_SPEED_CC} ${GOOGLE_CODESIZE_CC} ${GOOGLE_LITE_CC} ${PROTOBUF_C_C} ${REPRESENTATIONS_CC})
   if(NOT EXISTS ${required_file})
     message(FATAL_ERROR "Missing generated source ${required_file}; run buf generate first")
   endif()
@@ -47,6 +48,12 @@ add_executable(schema_registry_benchmark
 add_executable(kafka_producer_benchmark
   src/kafka_producer_benchmark.cc
   ${GOOGLE_SPEED_CC}
+)
+
+add_executable(representation_benchmark
+  src/representation_benchmark.cc
+  ${GOOGLE_SPEED_CC}
+  ${REPRESENTATIONS_CC}
 )
 
 target_include_directories(encode_benchmark PRIVATE
@@ -90,12 +97,24 @@ target_link_libraries(kafka_producer_benchmark PRIVATE
   ${RDKAFKA_LIBRARY}
 )
 
+target_include_directories(representation_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${GENERATED_DIR}/google_speed
+  ${GENERATED_DIR}/representations
+)
+
+target_link_libraries(representation_benchmark PRIVATE
+  protobuf::libprotobuf
+)
+
 target_compile_options(encode_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(schema_registry_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(kafka_producer_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+target_compile_options(representation_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(encode_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(schema_registry_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(kafka_producer_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(representation_benchmark PRIVATE -Wall -Wextra -Wpedantic)
 endif()

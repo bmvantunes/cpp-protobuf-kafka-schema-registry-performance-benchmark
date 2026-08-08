@@ -63,3 +63,13 @@ MODES=copy ACKS=0 COMPRESSIONS=none LINGER_MS=0 BATCH_NUM_MESSAGES=1 \
 ```
 
 Results are written to `results/KAFKA_PRODUCER_REPORT.md` and per-configuration CSV files. `enqueue` includes protobuf serialization plus the `librdkafka` `produce()` handoff; `flush` captures the remaining delivery time for the configured acknowledgement mode; `end_to_end` includes both. No consumer or decoding path is included.
+
+## Exact decimal representation phase
+
+Compare exact decimal encodings with:
+
+```bash
+./scripts/benchmark_representations.sh
+```
+
+This preserves decimal strings as a baseline and adds fixed-scale `sint64`, fixed-width `fixed64`, and 16-byte binary coefficient representations. The integer/binary schemas declare an eight-place scale in the benchmark metadata; no floating-point conversion is used. Every row runs one million encodes per repetition for ten repetitions. The report is `results/REPRESENTATION_REPORT.md`.
