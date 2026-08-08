@@ -1,0 +1,163 @@
+name: Native amd64 Docker benchmark (sharded Kafka)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      IMAGE_NAME: protobuf-encoding-benchmark:amd64-ci
+      SKIP_IMAGE_BUILD: "1"
+      ITERATIONS: "1000000"
+      REPETITIONS: "10"
+      WARMUP_ITERATIONS: "10000"
+      NETWORK_REPETITIONS: "10"
+      CPUSET_CPUS: "0"
+    steps:
+      - name: Check out benchmark
+        uses: actions/checkout@v4
+
+      - name: Record host and Docker versions
+        run: |
+          mkdir -p results
+          uname -a | tee results-host.txt
+          docker version | tee docker-version.txt
+          docker info | tee docker-info.txt
+
+      - name: Build latest benchmark image
+        run: docker build --progress=plain -t "$IMAGE_NAME" .
+
+      - name: Pure protobuf and JSON matrix
+        run: ./scripts/benchmark.sh
+
+      - name: Exact decimal representations
+        run: ./scripts/benchmark_representations.sh
+
+      - name: Allocation and latency tails
+        run: ./scripts/benchmark_latency.sh
+
+      - name: Value distributions
+        run: ./scripts/benchmark_distributions.sh
+
+      - name: Concurrency and contention
+        run: CPUSET_CPUS=0-1 ./scripts/benchmark_concurrency.sh
+
+      - name: Hardware counters
+        run: ./scripts/benchmark_perf.sh
+
+      - name: Plain Schema Registry paths
+        run: ./scripts/benchmark_schema_registry.sh
+
+      - name: TLS and Basic Auth Schema Registry paths
+        run: ./scripts/benchmark_schema_registry_secure.sh
+
+      - name: Schema evolution
+        run: ./scripts/benchmark_schema_evolution.sh
+
+      - name: Prepare core artifact
+        if: always()
+        run: |
+          mkdir -p results
+          cp results-host.txt results/docker-host.txt
+          cp docker-version.txt results/docker-version.txt
+          cp docker-info.txt results/docker-info.txt
+
+      - name: Upload core results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-core-${{ github.run_id }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90
+
+  kafka:
+    name: Kafka mode=${{ matrix.mode }}, acks=${{ matrix.acks }}
+    needs: core
+    if: always()
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [copy, owned]
+        acks: ["0", "1", all]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      IMAGE_NAME: protobuf-encoding-benchmark:amd64-ci
+      ITERATIONS: "1000000"
+      REPETITIONS: "10"
+      WARMUP_ITERATIONS: "10000"
+      CPUSET_CPUS: "0"
+      MODES: ${{ matrix.mode }}
+      ACKS: ${{ matrix.acks }}
+      COMPRESSIONS: none,lz4,zstd
+      LINGER_MS: 0,5
+      BATCH_NUM_MESSAGES: 1,100
+      MAX_RUNS: "0"
+    steps:
+      - name: Check out benchmark
+        uses: actions/checkout@v4
+
+      - name: Build latest benchmark image
+        run: docker build --progress=plain -t "$IMAGE_NAME" .
+
+      - name: Run Kafka shard
+        run: ./scripts/benchmark_kafka.sh
+
+      - name: Upload Kafka shard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-kafka-${{ matrix.mode }}-${{ matrix.acks }}-${{ github.run_id }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90
+
+  assemble:
+    name: Assemble amd64 report
+    needs: [core, kafka]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out benchmark
+        uses: actions/checkout@v4
+
+      - name: Download core results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: amd64-core-*
+          path: results
+          merge-multiple: true
+
+      - name: Download Kafka shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: amd64-kafka-*
+          path: results/kafka-shards
+          merge-multiple: false
+
+      - name: Merge Kafka shards and assemble report
+        run: |
+          python3 scripts/merge_kafka_results.py \
+            --root results/kafka-shards \
+            --csv results/kafka_producer_merged.csv \
+            --metadata results/kafka_producer_metadata.txt
+          python3 scripts/kafka_report.py \
+            --glob 'results/kafka_producer_merged.csv' \
+            --metadata results/kafka_producer_metadata.txt \
+            --output results/KAFKA_PRODUCER_REPORT.md
+          python3 scripts/architecture_report.py --arch amd64 --output results/amd64.md
+
+      - name: Upload final amd64 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-sharded-results-${{ github.run_id }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90
