@@ -1,6 +1,6 @@
 # C++ encoding benchmark for Kafka payloads
 
-This project measures encoding only: the time from an already-populated in-memory object/message to serialized bytes. It does not decode, parse, publish to Kafka, contact Schema Registry, or include network/compression time.
+This project measures encoding only: the time from an already-populated in-memory object/message to serialized bytes. It does not decode, parse, publish to Kafka, or include Kafka broker/network/compression time in the pure baseline.
 
 Run the required benchmark through Docker/OrbStack:
 
@@ -19,13 +19,29 @@ The matrix contains:
 
 Decimal values are deliberately strings in both formats. This preserves exact decimal text and avoids accidentally benchmarking floating-point conversion or losing quote-level equivalence between JSON and protobuf.
 
-## Kafka/Schema Registry follow-up
+## Confluent Schema Registry phase
 
-The next phase should add separate rows for:
+Run the real Confluent Kafka + ZooKeeper + Schema Registry stack in Docker/OrbStack:
 
-1. serializer output only (the current benchmark);
-2. serializer output plus Confluent wire framing: one magic byte and a four-byte schema ID;
-3. a producer-style path with a cached schema ID;
-4. cold and cache-miss Schema Registry interactions in a separate latency benchmark.
+```bash
+./scripts/benchmark_schema_registry.sh
+```
 
-The five-byte Confluent prefix is not expected to materially change serializer CPU time, but it does change allocation/copy behavior and final Kafka value size. Registry HTTP/RPC latency must remain a separate measurement from the hot encode path.
+This phase uses `confluentinc/cp-kafka:7.7.1`, `confluentinc/cp-zookeeper:7.7.1`, and `confluentinc/cp-schema-registry:7.7.1`. The Confluent images are pinned to `linux/amd64`; OrbStack runs them under emulation on Apple Silicon when necessary. The benchmark image itself is also built and run through Docker.
+
+It produces:
+
+- `results/schema_registry_raw.csv`: every steady-state repetition and every live Registry request;
+- `results/SCHEMA_REGISTRY_REPORT.md`: the detailed comparison and HFT recommendation;
+- `results/schema_registry_metadata.txt`: the exact run contract.
+
+The steady-state phase measures one million encodes per repetition for ten repetitions, with the schema ID already cached locally:
+
+1. pure protobuf output for the matching `SPEED` generated type;
+2. direct serialization into a buffer with six bytes reserved for the Protobuf Confluent prefix;
+3. serialization followed by a header/payload copy;
+4. `SerializeToString` followed by prefix/string assembly.
+
+For one top-level Protobuf message, the measured Confluent prefix is six bytes: one magic byte, four big-endian schema-ID bytes, and the one-byte message-index encoding for index zero. The prefix itself is therefore a bounded local operation; the important implementation choice is whether it causes an allocation or a second payload copy.
+
+The live Registry phase is deliberately separate from the hot encode loop. It measures ten repetitions each of a keep-alive Registry lookup, a lookup using a new connection, and cold schema registration under unique subjects. These paths include HTTP, Registry processing, Kafka-backed persistence where applicable, and container/network scheduling. They are useful for startup, rollout, recovery, and cache-miss planning—not as a reason to call Schema Registry for every Kafka message.

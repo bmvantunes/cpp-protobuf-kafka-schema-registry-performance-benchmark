@@ -12,6 +12,7 @@ RUN apt-get update \
        cmake \
        curl \
        git \
+       libcurl4-openssl-dev \
        libboost-json1.83-dev \
        libjsoncpp-dev \
        libprotobuf-c-dev \

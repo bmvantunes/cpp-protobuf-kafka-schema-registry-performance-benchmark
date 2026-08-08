@@ -10,6 +10,7 @@ find_package(Protobuf REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
 find_package(nlohmann_json REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
+find_package(CURL REQUIRED)
 
 find_path(PROTOBUF_C_INCLUDE_DIR protobuf-c/protobuf-c.h REQUIRED)
 find_library(PROTOBUF_C_LIBRARY protobuf-c REQUIRED)
@@ -36,6 +37,11 @@ add_executable(encode_benchmark
   ${PROTOBUF_C_C}
 )
 
+add_executable(schema_registry_benchmark
+  src/schema_registry_benchmark.cc
+  ${GOOGLE_SPEED_CC}
+)
+
 target_include_directories(encode_benchmark PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${GENERATED_DIR}/google_speed
@@ -56,8 +62,20 @@ target_link_libraries(encode_benchmark PRIVATE
   ${YYJSON_LIBRARY}
 )
 
+target_include_directories(schema_registry_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${GENERATED_DIR}/google_speed
+)
+
+target_link_libraries(schema_registry_benchmark PRIVATE
+  protobuf::libprotobuf
+  CURL::libcurl
+)
+
 target_compile_options(encode_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+target_compile_options(schema_registry_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(encode_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(schema_registry_benchmark PRIVATE -Wall -Wextra -Wpedantic)
 endif()
