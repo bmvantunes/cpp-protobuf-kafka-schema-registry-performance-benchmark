@@ -29,10 +29,18 @@ def main():
         variants.append(info)
         with raw.open(newline="") as handle:
             rows = list(csv.DictReader(handle))
+        if len(rows) != 360:
+            raise SystemExit(f"{variant_dir.name}: expected 360 measured rows, found {len(rows)}")
+        if {int(row["iterations"]) for row in rows} != {1_000_000}:
+            raise SystemExit(f"{variant_dir.name}: every row must use 1,000,000 iterations")
+        if {int(row["repetition"]) for row in rows} != set(range(1, 11)):
+            raise SystemExit(f"{variant_dir.name}: expected repetitions 1 through 10")
         groups = {}
         for row in rows:
             key = (row["kind"], row["library"], row["codegen"], row["api"], row["test_case"])
             groups.setdefault(key, []).append(float(row["ns_per_encode"]))
+        if len(groups) != 36 or any(len(values) != 10 for values in groups.values()):
+            raise SystemExit(f"{variant_dir.name}: expected 36 configurations with 10 repetitions each")
         for key, values in groups.items():
             summaries.append({
                 "variant": info.get("variant", variant_dir.name),

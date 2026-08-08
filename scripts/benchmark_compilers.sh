@@ -22,7 +22,8 @@ for definition in \
   "clang-cxx26|clang-22|clang++-22|26|Clang 22.1.2 C++26"; do
   IFS='|' read -r variant cc cxx standard name <<< "${definition}"
   echo "Running compiler variant ${name} (${variant})..."
-  if ! docker run --rm \
+  run_status=0
+  docker run --rm \
     --network=none \
     --cpuset-cpus="${CPUSET_CPUS:-0}" \
     -e ITERATIONS="${ITERATIONS:-1000000}" \
@@ -36,7 +37,8 @@ for definition in \
     -e COMPILER_NAME="${name}" \
     -v "${ROOT_DIR}/results:/work/results" \
     --entrypoint /work/scripts/container_compiler_benchmark.sh \
-    "${IMAGE_NAME}"; then
+    "${IMAGE_NAME}" || run_status=$?
+  if [[ "${run_status}" -ne 0 ]]; then
     printf 'status=failed\nvariant=%s\ncompiler_name=%s\n' "${variant}" "${name}" > "${RESULTS_DIR}/${variant}.failed"
     failures=$((failures + 1))
   fi
