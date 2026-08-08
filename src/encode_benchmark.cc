@@ -390,7 +390,7 @@ void run_protobuf_c(Csv& csv, const Config& config, Case test_case) {
     for (std::size_t i = 0; i < decimals.size(); ++i) *decimal_fields[i] = const_cast<char*>(decimals[i].c_str());
     const auto bytes = benchmark__protobuf_c__ten_string_fifty_decimal__get_packed_size(&message);
     std::vector<std::uint8_t> buffer(bytes);
-    run_measure(csv, "protobuf", "protobuf_c", "c_generated", "pack_preallocated_empty_wide", test_case, config, bytes,
+    run_measure(csv, "protobuf", "protobuf_c", "c_generated", "pack_preallocated", test_case, config, bytes,
                 [&] { return benchmark__protobuf_c__ten_string_fifty_decimal__pack(&message, buffer.data()); });
   }
 }
