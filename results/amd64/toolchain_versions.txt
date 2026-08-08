@@ -1,0 +1,15 @@
+architecture=x86_64
+kernel=6.17.0-1020-azure
+compiler=c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+cmake=cmake version 4.4.2
+buf=1.72.0
+protoc=libprotoc 35.0
+python=Python 3.14.4
+protobuf_package=not-installed
+protobuf_c_package=1.5.1-1ubuntu2
+boost_json_package=1.83.0-5ubuntu5
+jsoncpp_package=1.9.6-5
+rapidjson_package=1.1.0+dfsg2-7.6ubuntu1
+librdkafka=2.8.0
+yyjson=0.12.0
+nlohmann_json=3.12.0

@@ -1,0 +1,5 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+threads=2
+mode=shared_buffer_mutex
