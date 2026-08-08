@@ -16,6 +16,7 @@ RUN apt-get update \
        libboost-json1.83-dev \
        libjsoncpp-dev \
        librdkafka-dev \
+       linux-tools-generic \
        libprotobuf-c-dev \
        libprotobuf-dev \
        nlohmann-json3-dev \

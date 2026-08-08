@@ -103,3 +103,13 @@ Run the multi-threaded encoding matrix with:
 ```
 
 The default run uses 1/2/4/8 workers and compares per-thread state, a shared immutable message with independent buffers, and a deliberately mutex-protected shared output buffer. Each configuration performs one million total encodes per repetition for ten repetitions. Results are written to `results/CONCURRENCY_REPORT.md`.
+
+## Hardware-counter phase
+
+Request cycles, instructions, cache, and branch counters through Docker with:
+
+```bash
+./scripts/benchmark_perf.sh
+```
+
+The image includes Ubuntu perf tooling and the container requests `PERFMON` plus an unrestricted seccomp profile. OrbStack’s kernel may still reject the version-specific perf tool; in that case `results/PERF_REPORT.md` records the unsupported result explicitly. Authoritative counter comparisons should be repeated on the production Linux host with matching kernel tools and perf permissions.
