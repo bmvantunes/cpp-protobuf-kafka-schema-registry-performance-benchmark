@@ -58,6 +58,15 @@ def main():
 
     lines += [
         "",
+        "## Toolchain and host metadata",
+        "",
+    ]
+    for filename in ("toolchain_versions.txt", "docker-host.txt", "docker-version.txt", "docker-info.txt"):
+        path = root / filename
+        if path.exists():
+            lines += [f"### {filename}", "", "```text", path.read_text().rstrip(), "```", ""]
+
+    lines += [
         "## Raw artifacts",
         "",
         "The accompanying workflow artifact contains the raw CSV files, metadata, Docker version output, and this report. CSV files are retained for statistical re-analysis; the tables above are the human-readable snapshot committed or uploaded for review.",

@@ -107,7 +107,7 @@ def main():
         f"- Excluded warmup encodes: `{meta.get('steady_state_warmup_iterations', '?')}`",
         f"- Cold/control-plane repetitions: `{meta.get('network_repetitions', '?')}` requests per path",
         "- Cold/control-plane paths intentionally use one HTTP request per repetition; sending one million live registration requests would benchmark Registry stress and storage behavior, not a production encode path.",
-        "- All work runs in Docker; the Registry is Confluent Schema Registry backed by Confluent Kafka and ZooKeeper containers.",
+        "- All work runs in Docker; the Registry is Confluent Schema Registry backed by Confluent Kafka in single-node KRaft mode.",
         "- Decimal values remain exact strings in both protobuf and JSON payloads.",
         "",
         "## Steady-state result versus pure protobuf",

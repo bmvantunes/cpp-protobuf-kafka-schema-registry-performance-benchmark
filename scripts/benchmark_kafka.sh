@@ -47,6 +47,8 @@ docker run --rm \
   -e COMPRESSIONS="${COMPRESSIONS:-none,lz4,zstd}" \
   -e LINGER_MS="${LINGER_MS:-0,5}" \
   -e BATCH_NUM_MESSAGES="${BATCH_NUM_MESSAGES:-1,100}" \
+  -e MAX_RUNS="${MAX_RUNS:-0}" \
+  -e APPEND_RESULTS="${APPEND_RESULTS:-0}" \
   -e RESULTS_DIR=/work/results \
   -v "${RESULTS_DIR}:/work/results" \
   --entrypoint /work/scripts/container_kafka_benchmark.sh \

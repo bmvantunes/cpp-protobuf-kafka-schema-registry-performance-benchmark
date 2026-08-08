@@ -13,6 +13,8 @@ cd /work
 : "${COMPRESSIONS:=none,lz4,zstd}"
 : "${LINGER_MS:=0,5}"
 : "${BATCH_NUM_MESSAGES:=1,100}"
+: "${MAX_RUNS:=0}"
+: "${APPEND_RESULTS:=0}"
 : "${RESULTS_DIR:=/work/results}"
 
 if [[ "${ITERATIONS}" -lt 1000000 || "${REPETITIONS}" -lt 10 ]]; then
@@ -40,8 +42,13 @@ IFS=',' read -r -a compression_values <<< "${COMPRESSIONS}"
 IFS=',' read -r -a linger_values <<< "${LINGER_MS}"
 IFS=',' read -r -a batch_values <<< "${BATCH_NUM_MESSAGES}"
 
-rm -f "${RESULTS_DIR}"/kafka_producer_*.csv "${RESULTS_DIR}"/kafka_producer_*.metadata.txt "${RESULTS_DIR}/kafka_producer_metadata.txt"
+if [[ "${APPEND_RESULTS}" != "1" ]]; then
+  rm -f "${RESULTS_DIR}"/kafka_producer_*.csv "${RESULTS_DIR}"/kafka_producer_*.metadata.txt "${RESULTS_DIR}/kafka_producer_metadata.txt"
+fi
 run_index=0
+if [[ "${APPEND_RESULTS}" == "1" ]]; then
+  run_index=$(find "${RESULTS_DIR}" -maxdepth 1 -name 'kafka_producer_*.csv' | wc -l | tr -d ' ')
+fi
 for mode in "${mode_values[@]}"; do
   for acks in "${ack_values[@]}"; do
     for compression in "${compression_values[@]}"; do
@@ -65,6 +72,9 @@ for mode in "${mode_values[@]}"; do
             --batch-num-messages "${batch}" \
             --csv "${output}" \
             --metadata "${metadata}"
+          if [[ "${MAX_RUNS}" -gt 0 && "${run_index}" -ge "${MAX_RUNS}" ]]; then
+            break 5
+          fi
         done
       done
     done
