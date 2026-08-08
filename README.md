@@ -84,7 +84,7 @@ This registers and looks up V1/V2 schemas against the live CP 8.3 Registry, incl
 
 ## Native AMD64 run
 
-`.github/workflows/amd64-benchmark.yml` runs the Dockerized suite on a native GitHub-hosted Ubuntu AMD64 machine. The benchmark image remains Ubuntu 26.04, while the runner supplies the native host architecture. The workflow uploads raw CSV/metadata artifacts and generates `results/amd64.md`; the local OrbStack run is assembled as `results/arm64.md`.
+`.github/workflows/amd64-benchmark-sharded.yml` runs the Dockerized suite on a native GitHub-hosted Ubuntu AMD64 machine. The benchmark image remains Ubuntu 26.04, while the runner supplies the native host architecture. Kafka is split into six independent shards so the full 72-configuration matrix can run in parallel; the assembled report and raw artifacts are committed under `results/amd64/`, with the aggregate report at `results/amd64.md`. The local OrbStack run is assembled as `results/arm64.md`, and `results/ARCHITECTURE_COMPARISON.md` contains the cross-architecture verdict.
 
 ```bash
 python3 scripts/architecture_report.py --arch arm64 --output results/arm64.md
