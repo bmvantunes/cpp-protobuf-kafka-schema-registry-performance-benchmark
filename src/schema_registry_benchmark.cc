@@ -119,6 +119,9 @@ struct Config {
   std::uint32_t network_repetitions = 10;
   std::string registry_url = "http://schema-registry:8081";
   std::string failure_url = "http://schema-registry:65530";
+  std::string username;
+  std::string password;
+  bool insecure_tls = false;
   std::string csv_path = "/work/results/schema_registry_raw.csv";
   std::string metadata_path = "/work/results/schema_registry_metadata.txt";
 };
@@ -203,6 +206,13 @@ struct HttpResult {
   std::string body;
 };
 
+struct HttpOptions {
+  std::string user_password;
+  bool insecure_tls = false;
+};
+
+HttpOptions http_options;
+
 size_t write_body(char* data, size_t size, size_t count, void* userdata) {
   auto* body = static_cast<std::string*>(userdata);
   body->append(data, size * count);
@@ -218,6 +228,15 @@ HttpResult http_request(CURL* curl, const std::string& url, const char* method, 
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  if (!http_options.user_password.empty()) {
+    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_easy_setopt(curl, CURLOPT_USERPWD, http_options.user_password.c_str());
+  } else {
+    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_NONE);
+    curl_easy_setopt(curl, CURLOPT_USERPWD, nullptr);
+  }
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, http_options.insecure_tls ? 0L : 1L);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, http_options.insecure_tls ? 0L : 2L);
   if (std::strcmp(method, "POST") == 0) {
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 0L);
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
@@ -417,6 +436,9 @@ Config parse_args(int argc, char** argv) {
     else if (arg == "--network-repetitions") config.network_repetitions = static_cast<std::uint32_t>(std::stoul(next()));
     else if (arg == "--registry-url") config.registry_url = next();
     else if (arg == "--failure-url") config.failure_url = next();
+    else if (arg == "--username") config.username = next();
+    else if (arg == "--password") config.password = next();
+    else if (arg == "--insecure-tls") config.insecure_tls = true;
     else if (arg == "--csv") config.csv_path = next();
     else if (arg == "--metadata") config.metadata_path = next();
     else throw std::runtime_error("unknown argument: " + arg);
@@ -444,6 +466,8 @@ void write_metadata(const Config& config) {
   metadata << "network_iterations_per_repetition=1\n";
   metadata << "registry_url=" << config.registry_url << '\n';
   metadata << "failure_url=" << config.failure_url << '\n';
+  metadata << "tls_insecure=" << (config.insecure_tls ? "true" : "false") << '\n';
+  metadata << "basic_auth_enabled=" << (!config.username.empty() ? "true" : "false") << '\n';
   metadata << "confluent_protobuf_prefix_bytes=6\n";
   metadata << "cold_network_paths_are_not_1m_by_design=true\n";
 }
@@ -453,6 +477,8 @@ void write_metadata(const Config& config) {
 int main(int argc, char** argv) {
   try {
     const Config config = parse_args(argc, argv);
+    http_options.user_password = config.username.empty() ? "" : config.username + ":" + config.password;
+    http_options.insecure_tls = config.insecure_tls;
     write_metadata(config);
     Csv csv(config.csv_path);
 

@@ -6,7 +6,9 @@ RESULTS_DIR="${RESULTS_DIR:-${ROOT_DIR}/results}"
 THREADS="${THREADS:-1,2,4,8}"
 MODES="${MODES:-thread_local,shared_readonly,shared_buffer_mutex}"
 mkdir -p "${RESULTS_DIR}"
-docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+if [[ "${SKIP_IMAGE_BUILD:-0}" != "1" ]]; then
+  docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+fi
 docker run --rm --network=none --cpuset-cpus="${CPUSET_CPUS:-0-7}" \
   -e ITERATIONS="${ITERATIONS:-1000000}" -e REPETITIONS="${REPETITIONS:-10}" -e WARMUP_ITERATIONS="${WARMUP_ITERATIONS:-10000}" \
   -e THREADS="${THREADS}" -e MODES="${MODES}" -e RESULTS_DIR=/work/results -v "${RESULTS_DIR}:/work/results" \

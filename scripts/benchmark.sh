@@ -7,8 +7,10 @@ RESULTS_DIR="${RESULTS_DIR:-${ROOT_DIR}/results}"
 
 mkdir -p "${RESULTS_DIR}"
 
-echo "Building Docker image ${IMAGE_NAME}..."
-docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+if [[ "${SKIP_IMAGE_BUILD:-0}" != "1" ]]; then
+  echo "Building Docker image ${IMAGE_NAME}..."
+  docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+fi
 
 docker run --rm \
   --network=none \

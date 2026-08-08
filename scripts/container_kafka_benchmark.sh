@@ -28,6 +28,7 @@ buf generate proto --template buf.gen.google_speed.yaml
 buf generate proto --template buf.gen.google_codesize.yaml
 buf generate proto --template buf.gen.google_lite.yaml
 buf generate proto --template buf.gen.protobuf_c.yaml
+buf generate proto --template buf.gen.representations.yaml
 
 echo "Building Kafka producer benchmark..."
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

@@ -6,7 +6,9 @@ RESULTS_DIR="${RESULTS_DIR:-${ROOT_DIR}/results}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-protobuf-schema-evolution-benchmark}"
 NETWORK_NAME="${COMPOSE_PROJECT}_default"
 mkdir -p "${RESULTS_DIR}"
-docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+if [[ "${SKIP_IMAGE_BUILD:-0}" != "1" ]]; then
+  docker build --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+fi
 cleanup() { docker compose -p "${COMPOSE_PROJECT}" -f "${ROOT_DIR}/docker-compose.schema-registry.yml" down -v --remove-orphans >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 docker compose -p "${COMPOSE_PROJECT}" -f "${ROOT_DIR}/docker-compose.schema-registry.yml" up -d

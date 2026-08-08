@@ -1,0 +1,81 @@
+name: Native amd64 Docker benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      IMAGE_NAME: protobuf-encoding-benchmark:amd64-ci
+      SKIP_IMAGE_BUILD: "1"
+      ITERATIONS: "1000000"
+      REPETITIONS: "10"
+      WARMUP_ITERATIONS: "10000"
+      NETWORK_REPETITIONS: "10"
+      CPUSET_CPUS: "0"
+    steps:
+      - name: Check out benchmark
+        uses: actions/checkout@v4
+
+      - name: Record host and Docker versions
+        run: |
+          uname -a | tee results-host.txt
+          docker version | tee docker-version.txt
+          docker info | tee docker-info.txt
+
+      - name: Build latest benchmark image
+        run: docker build --progress=plain -t "$IMAGE_NAME" .
+
+      - name: Pure protobuf and JSON matrix
+        run: ./scripts/benchmark.sh
+
+      - name: Exact decimal representations
+        run: ./scripts/benchmark_representations.sh
+
+      - name: Allocation and latency tails
+        run: ./scripts/benchmark_latency.sh
+
+      - name: Value distributions
+        run: ./scripts/benchmark_distributions.sh
+
+      - name: Concurrency and contention
+        run: CPUSET_CPUS=0-1 ./scripts/benchmark_concurrency.sh
+
+      - name: Hardware counters
+        run: ./scripts/benchmark_perf.sh
+
+      - name: Real librdkafka producer matrix
+        run: ./scripts/benchmark_kafka.sh
+
+      - name: Plain Schema Registry paths
+        run: ./scripts/benchmark_schema_registry.sh
+
+      - name: TLS and Basic Auth Schema Registry paths
+        run: ./scripts/benchmark_schema_registry_secure.sh
+
+      - name: Schema evolution
+        run: ./scripts/benchmark_schema_evolution.sh
+
+      - name: Assemble amd64 report
+        if: always()
+        run: |
+          cp results-host.txt results/docker-host.txt
+          cp docker-version.txt results/docker-version.txt
+          cp docker-info.txt results/docker-info.txt
+          python3 scripts/architecture_report.py --arch amd64 --output results/amd64.md
+
+      - name: Upload amd64 raw data and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-benchmark-results-${{ github.run_id }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90

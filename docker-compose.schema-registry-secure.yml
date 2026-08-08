@@ -1,0 +1,52 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:8.3.0
+    hostname: kafka
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  schema-registry-secure:
+    image: confluentinc/cp-schema-registry:8.3.0
+    depends_on:
+      - kafka
+    ports:
+      - "18082:8082"
+    volumes:
+      - ./security/schema-registry-jaas.conf:/etc/schema-registry/jaas.conf:ro
+      - ./security/schema-registry-password.properties:/etc/schema-registry/password.properties:ro
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-secure
+      SCHEMA_REGISTRY_LISTENERS: https://0.0.0.0:8082
+      SCHEMA_REGISTRY_INTER_INSTANCE_PROTOCOL: https
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_DEBUG: "false"
+      SCHEMA_REGISTRY_AUTHENTICATION_METHOD: BASIC
+      SCHEMA_REGISTRY_AUTHENTICATION_ROLES: benchmark
+      SCHEMA_REGISTRY_AUTHENTICATION_REALM: SchemaRegistry-Props
+      SCHEMA_REGISTRY_SSL_KEYSTORE_LOCATION: /etc/schema-registry/schema-registry.p12
+      SCHEMA_REGISTRY_SSL_KEYSTORE_PASSWORD: changeit
+      SCHEMA_REGISTRY_SSL_KEY_PASSWORD: changeit
+      SCHEMA_REGISTRY_SSL_KEYSTORE_TYPE: PKCS12
+      SCHEMA_REGISTRY_OPTS: -Djava.security.auth.login.config=/etc/schema-registry/jaas.conf
+    command:
+      - bash
+      - -c
+      - |
+        keytool -genkeypair -alias schema-registry -keyalg RSA -keysize 2048 -validity 2 \
+          -keystore /etc/schema-registry/schema-registry.p12 -storetype PKCS12 \
+          -storepass changeit -keypass changeit \
+          -dname "CN=schema-registry-secure" -noprompt
+        /etc/confluent/docker/run

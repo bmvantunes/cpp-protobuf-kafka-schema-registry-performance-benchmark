@@ -194,7 +194,7 @@ void run_message(Csv& csv, const Config& config, const char* test_case, Message 
     return message.SerializeToString(&serialized) ? serialized.size() : 0;
   });
   google::protobuf::Arena arena;
-  auto* arena_message = google::protobuf::Arena::CreateMessage<Message>(&arena);
+  auto* arena_message = google::protobuf::Arena::Create<Message>(&arena);
   *arena_message = message;
   std::vector<std::uint8_t> arena_buffer(bytes);
   run_path<Message>(csv, config, test_case, "serialize_array_arena_message", bytes, [&] {
