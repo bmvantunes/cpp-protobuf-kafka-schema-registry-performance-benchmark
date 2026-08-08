@@ -16,6 +16,8 @@ find_path(PROTOBUF_C_INCLUDE_DIR protobuf-c/protobuf-c.h REQUIRED)
 find_library(PROTOBUF_C_LIBRARY protobuf-c REQUIRED)
 find_path(YYJSON_INCLUDE_DIR yyjson.h REQUIRED)
 find_library(YYJSON_LIBRARY yyjson REQUIRED)
+find_path(RDKAFKA_INCLUDE_DIR librdkafka/rdkafka.h REQUIRED)
+find_library(RDKAFKA_LIBRARY rdkafka REQUIRED)
 
 set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
 set(GOOGLE_SPEED_CC ${GENERATED_DIR}/google_speed/google_speed/market.pb.cc)
@@ -39,6 +41,11 @@ add_executable(encode_benchmark
 
 add_executable(schema_registry_benchmark
   src/schema_registry_benchmark.cc
+  ${GOOGLE_SPEED_CC}
+)
+
+add_executable(kafka_producer_benchmark
+  src/kafka_producer_benchmark.cc
   ${GOOGLE_SPEED_CC}
 )
 
@@ -72,10 +79,23 @@ target_link_libraries(schema_registry_benchmark PRIVATE
   CURL::libcurl
 )
 
+target_include_directories(kafka_producer_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${GENERATED_DIR}/google_speed
+  ${RDKAFKA_INCLUDE_DIR}
+)
+
+target_link_libraries(kafka_producer_benchmark PRIVATE
+  protobuf::libprotobuf
+  ${RDKAFKA_LIBRARY}
+)
+
 target_compile_options(encode_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(schema_registry_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+target_compile_options(kafka_producer_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(encode_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(schema_registry_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(kafka_producer_benchmark PRIVATE -Wall -Wextra -Wpedantic)
 endif()

@@ -15,6 +15,7 @@ RUN apt-get update \
        libcurl4-openssl-dev \
        libboost-json1.83-dev \
        libjsoncpp-dev \
+       librdkafka-dev \
        libprotobuf-c-dev \
        libprotobuf-dev \
        nlohmann-json3-dev \

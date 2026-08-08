@@ -45,3 +45,21 @@ The steady-state phase measures one million encodes per repetition for ten repet
 For one top-level Protobuf message, the measured Confluent prefix is six bytes: one magic byte, four big-endian schema-ID bytes, and the one-byte message-index encoding for index zero. The prefix itself is therefore a bounded local operation; the important implementation choice is whether it causes an allocation or a second payload copy.
 
 The live Registry phase is deliberately separate from the hot encode loop. It measures ten repetitions each of a keep-alive Registry lookup, a lookup using a new connection, and cold schema registration under unique subjects. These paths include HTTP, Registry processing, Kafka-backed persistence where applicable, and container/network scheduling. They are useful for startup, rollout, recovery, and cache-miss planning—not as a reason to call Schema Registry for every Kafka message.
+
+## Real Kafka producer phase
+
+Run the producer-path benchmark with the same Dockerized Confluent Kafka stack:
+
+```bash
+./scripts/benchmark_kafka.sh
+```
+
+The default matrix measures copy versus ownership-transfer producer paths, `acks=0/1/all`, no compression/LZ4/Zstandard, `linger.ms=0/5`, and batch sizes of 1/100. Each configuration is one million serialized messages per repetition and ten repetitions. The broad default matrix is intentionally expensive because it measures real broker interaction rather than a synthetic client-only loop; narrow it for development with comma-separated environment variables, for example:
+
+```bash
+ITERATIONS=1000000 REPETITIONS=10 \
+MODES=copy ACKS=0 COMPRESSIONS=none LINGER_MS=0 BATCH_NUM_MESSAGES=1 \
+./scripts/benchmark_kafka.sh
+```
+
+Results are written to `results/KAFKA_PRODUCER_REPORT.md` and per-configuration CSV files. `enqueue` includes protobuf serialization plus the `librdkafka` `produce()` handoff; `flush` captures the remaining delivery time for the configured acknowledgement mode; `end_to_end` includes both. No consumer or decoding path is included.
