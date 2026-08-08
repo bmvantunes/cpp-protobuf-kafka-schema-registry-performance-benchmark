@@ -28,14 +28,16 @@ package_version() {
   printf 'buf=%s\n' "$(buf --version)"
   printf 'protoc=%s\n' "$(protoc --version)"
   printf 'python=%s\n' "$(python3 --version)"
-  printf 'protobuf_package=%s\n' "$(package_version libprotobuf-dev)"
-  printf 'protobuf_c_package=%s\n' "$(package_version libprotobuf-c-dev)"
-  printf 'boost_json_package=%s\n' "$(package_version libboost-json1.83-dev)"
+  printf 'protobuf_package=%s\n' "${BENCHMARK_PROTOBUF_VERSION:-$(package_version libprotobuf-dev)}"
+  printf 'protobuf_c_package=%s\n' "${BENCHMARK_PROTOBUF_C_VERSION:-$(package_version libprotobuf-c-dev)}"
+  printf 'boost_json_package=%s\n' "${BENCHMARK_BOOST_VERSION:-unknown}"
   printf 'jsoncpp_package=%s\n' "$(package_version libjsoncpp-dev)"
   printf 'rapidjson_package=%s\n' "$(package_version rapidjson-dev)"
-  printf 'librdkafka=%s\n' "$(pkg-config --modversion rdkafka 2>/dev/null || printf 'source-build-version-2.8.0')"
-  printf 'yyjson=0.12.0\n'
-  printf 'nlohmann_json=3.12.0\n'
+  printf 'librdkafka=%s\n' "$(pkg-config --modversion rdkafka 2>/dev/null || printf '%s' "${BENCHMARK_RDKAFKA_VERSION:-source-build-version-unknown}")"
+  printf 'yyjson=%s\n' "${BENCHMARK_YYJSON_VERSION:-unknown}"
+  printf 'nlohmann_json=%s\n' "${BENCHMARK_NLOHMANN_JSON_VERSION:-unknown}"
+  printf 'jsoncpp=%s\n' "${BENCHMARK_JSONCPP_VERSION:-unknown}"
+  printf 'clang=%s\n' "$(clang++-22 --version | head -1 2>/dev/null || printf 'not-installed')"
 } > "${RESULTS_DIR}/toolchain_versions.txt"
 
 echo "Generating C++ and protobuf-c types with buf ${BUF_VERSION:-pinned-image-version}..."

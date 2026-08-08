@@ -6,6 +6,7 @@ from pathlib import Path
 
 REPORTS = [
     "REPORT.md",
+    "COMPILER_REPORT.md",
     "REPRESENTATION_REPORT.md",
     "LATENCY_REPORT.md",
     "DISTRIBUTION_REPORT.md",

@@ -36,6 +36,9 @@ jobs:
       - name: Pure protobuf and JSON matrix
         run: ./scripts/benchmark.sh
 
+      - name: GCC and Clang C++23/C++26 matrix
+        run: SKIP_IMAGE_BUILD=1 IMAGE_NAME="$IMAGE_NAME" ./scripts/benchmark_compilers.sh
+
       - name: Exact decimal representations
         run: ./scripts/benchmark_representations.sh
 

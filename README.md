@@ -10,7 +10,7 @@ Run the required benchmark through Docker/OrbStack:
 
 The default run is one million encodes per benchmark, ten measured repetitions, and a small excluded warmup. Results are written to `results/raw.csv` and `results/REPORT.md`. The runner pins the container to CPU 0 by default; set `CPUSET_CPUS=...` if you need another CPU set.
 
-The current image is pinned to Ubuntu 26.04, GCC 15.2, C++23, CMake 4.4.2, Buf 1.72.0, protobuf 35.0, librdkafka 2.8.0, yyjson 0.12.0, and nlohmann/json 3.12.0. Boost.JSON, JsonCpp, RapidJSON, and protobuf-c use the exact Ubuntu package versions recorded in `results/toolchain_versions.txt`. protobuf-c 1.5.2 is not source-compatible with protobuf 35, so the current compatible Ubuntu protobuf-c compiler/runtime is used for that comparison.
+The current image is pinned to Ubuntu 26.04, GCC 15.2, Ubuntu Clang 22.1.2, C++23/C++26 modes, CMake 4.4.2, Buf 1.72.0, protobuf 35.1, librdkafka 2.15.0, Boost 1.91.0, JsonCpp 1.9.8, yyjson 0.12.0, nlohmann/json 3.12.0, and protobuf-c 1.5.2. protobuf-c 1.5.2 needs a compile-only compatibility shim for the removed protobuf 35.1 descriptor accessor; the shim is included and recorded in the image build rather than silently downgrading protobuf.
 
 The matrix contains:
 
@@ -89,6 +89,22 @@ This registers and looks up V1/V2 schemas against the live CP 8.3 Registry, incl
 ```bash
 python3 scripts/architecture_report.py --arch arm64 --output results/arm64.md
 ```
+
+## Compiler and emulation phases
+
+Run GCC 15 and Clang 22 with both C++23 and C++26 modes:
+
+```bash
+./scripts/benchmark_compilers.sh
+```
+
+The matrix keeps the 1M × 10 encoding contract for every successful variant and writes `results/COMPILER_REPORT.md` plus per-variant raw CSVs. On the ARM64 host, run the native AMD64 emulation comparison with:
+
+```bash
+./scripts/benchmark_emulated.sh
+```
+
+That phase uses Docker’s `linux/amd64` platform and writes `results/emulated-amd64.md`. Emulated values are architecture/translation evidence, not production latency budgets.
 
 ## Exact decimal representation phase
 

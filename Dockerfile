@@ -1,20 +1,38 @@
 FROM ubuntu:26.04
 
 ARG BUF_VERSION=1.72.0
+ARG BOOST_VERSION=1.91.0
+ARG BOOST_ARCHIVE_VERSION=1_91_0
 ARG CMAKE_VERSION=4.4.2
-ARG PROTOBUF_VERSION=35.0
-ARG RDKAFKA_VERSION=2.8.0
+ARG PROTOBUF_VERSION=35.1
+ARG PROTOBUF_C_VERSION=1.5.2
+ARG RDKAFKA_VERSION=2.15.0
 ARG YYJSON_VERSION=0.12.0
 ARG NLOHMANN_JSON_VERSION=3.12.0
+ARG JSONCPP_VERSION=1.9.8
 ARG TARGETARCH
+
+COPY patches/protobuf-c-compat.h /tmp/protobuf-c-compat.h
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LD_LIBRARY_PATH=/usr/local/lib \
-    PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+    PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig \
+    BENCHMARK_BUF_VERSION=${BUF_VERSION} \
+    BENCHMARK_BOOST_VERSION=${BOOST_VERSION} \
+    BENCHMARK_CMAKE_VERSION=${CMAKE_VERSION} \
+    BENCHMARK_PROTOBUF_VERSION=${PROTOBUF_VERSION} \
+    BENCHMARK_PROTOBUF_C_VERSION=${PROTOBUF_C_VERSION} \
+    BENCHMARK_RDKAFKA_VERSION=${RDKAFKA_VERSION} \
+    BENCHMARK_YYJSON_VERSION=${YYJSON_VERSION} \
+    BENCHMARK_NLOHMANN_JSON_VERSION=${NLOHMANN_JSON_VERSION} \
+    BENCHMARK_JSONCPP_VERSION=${JSONCPP_VERSION} \
+    BENCHMARK_CLANG_VERSION=22.1.2
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        build-essential \
+       clang-22 \
+       lld-22 \
        autoconf \
        automake \
        ca-certificates \
@@ -22,14 +40,10 @@ RUN apt-get update \
        git \
        libabsl-dev \
        libcurl4-openssl-dev \
-       libboost-json1.83-dev \
-       libjsoncpp-dev \
        liblz4-dev \
        libtool \
        libsasl2-dev \
        linux-tools-generic \
-       libprotobuf-c-dev \
-       protobuf-c-compiler \
        python3 \
        rapidjson-dev \
        libssl-dev \
@@ -79,6 +93,26 @@ RUN git clone --depth 1 --branch "v${RDKAFKA_VERSION}" https://github.com/conflu
     && cmake --install /tmp/librdkafka-build \
     && rm -rf /tmp/librdkafka-build /opt/librdkafka
 
+RUN git clone --depth 1 --branch "${JSONCPP_VERSION}" https://github.com/open-source-parsers/jsoncpp.git /opt/jsoncpp \
+    && cmake -S /opt/jsoncpp -B /tmp/jsoncpp-build -G Ninja \
+       -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+       -DJSONCPP_WITH_TESTS=OFF -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF \
+       -DJSONCPP_WITH_EXAMPLE=OFF \
+    && cmake --build /tmp/jsoncpp-build \
+    && cmake --install /tmp/jsoncpp-build \
+    && ldconfig \
+    && rm -rf /tmp/jsoncpp-build /opt/jsoncpp
+
+RUN git clone --depth 1 --branch "v${PROTOBUF_C_VERSION}" https://github.com/protobuf-c/protobuf-c.git /opt/protobuf-c \
+    && sed -i 's/descriptor_->label()/GetFieldLabel(descriptor_)/g' /opt/protobuf-c/protoc-gen-c/*.cc \
+    && for source in /opt/protobuf-c/protoc-gen-c/*.cc; do sed -i '1i#include "/tmp/protobuf-c-compat.h"' "${source}"; done \
+    && cmake -S /opt/protobuf-c/build-cmake -B /tmp/protobuf-c-build -G Ninja \
+       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_PROTOC=ON \
+    && cmake --build /tmp/protobuf-c-build \
+    && cmake --install /tmp/protobuf-c-build \
+    && ldconfig \
+    && rm -rf /tmp/protobuf-c-build /opt/protobuf-c
+
 RUN git clone --depth 1 --branch "${YYJSON_VERSION}" https://github.com/ibireme/yyjson.git /opt/yyjson \
     && cmake -S /opt/yyjson -B /tmp/yyjson-build -G Ninja \
        -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DYYJSON_BUILD_TESTS=OFF \
@@ -93,6 +127,17 @@ RUN git clone --depth 1 --branch "v${NLOHMANN_JSON_VERSION}" https://github.com/
     && cmake --install /tmp/nlohmann-json-build \
     && ldconfig \
     && rm -rf /tmp/nlohmann-json-build /opt/nlohmann-json
+
+RUN curl --fail --silent --show-error --location \
+       "https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_ARCHIVE_VERSION}.tar.gz" \
+       --output /tmp/boost.tar.gz \
+    && mkdir -p /opt/boost \
+    && tar -xzf /tmp/boost.tar.gz --strip-components=1 -C /opt/boost \
+    && cd /opt/boost \
+    && ./bootstrap.sh --with-libraries=json --prefix=/usr/local \
+    && ./b2 -j2 variant=release link=shared threading=multi install \
+    && ldconfig \
+    && rm -rf /tmp/boost.tar.gz /opt/boost
 
 WORKDIR /work
 COPY . /work
