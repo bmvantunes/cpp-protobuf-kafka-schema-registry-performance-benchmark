@@ -3,7 +3,7 @@ name: Native amd64 Docker benchmark
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "benchmarks/**"]
 
 permissions:
   contents: read
