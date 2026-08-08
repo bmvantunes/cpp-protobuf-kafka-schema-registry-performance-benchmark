@@ -83,3 +83,13 @@ For actual tail measurements and allocator behavior:
 ```
 
 This records one million individually timed encodes per repetition for every required payload. It reports p50, p90, p99, p99.9, p99.99, max latency, allocation count, and allocated bytes for reusable output buffers, fresh output allocation, reserved strings, and protobuf Arena messages. Because timing is placed around every operation, these results are instrumented latency measurements and should be compared within that report rather than directly substituted for the aggregate throughput numbers.
+
+## Value-distribution phase
+
+Measure varint and string-size sensitivity with:
+
+```bash
+./scripts/benchmark_distributions.sh
+```
+
+This covers small, large, negative, and mixed int64 values, plus short ASCII, long ASCII, and multibyte UTF-8 strings. It uses a pre-populated 1,024-message corpus and runs one million encodes per repetition for ten repetitions. Results are written to `results/DISTRIBUTION_REPORT.md`.
