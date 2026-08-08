@@ -32,6 +32,16 @@ jobs:
       - name: Build latest benchmark image
         run: docker build --progress=plain -t "$IMAGE_NAME" .
 
+      - name: Package benchmark image
+        run: docker save "$IMAGE_NAME" | gzip -1 > benchmark-image.tar.gz
+
+      - name: Upload benchmark image
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-image-${{ github.run_id }}
+          path: benchmark-image.tar.gz
+          retention-days: 7
+
       - name: Pure protobuf and JSON matrix
         run: ./scripts/benchmark.sh
 
@@ -103,8 +113,15 @@ jobs:
       - name: Check out benchmark
         uses: actions/checkout@v4
 
-      - name: Build latest benchmark image
-        run: docker build --progress=plain -t "$IMAGE_NAME" .
+      - name: Download benchmark image
+        uses: actions/download-artifact@v4
+        with:
+          pattern: amd64-image-*
+          path: /tmp/amd64-image
+          merge-multiple: true
+
+      - name: Load benchmark image
+        run: gzip -dc /tmp/amd64-image/benchmark-image.tar.gz | docker load
 
       - name: Run Kafka shard
         run: ./scripts/benchmark_kafka.sh
