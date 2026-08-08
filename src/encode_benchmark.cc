@@ -304,7 +304,7 @@ YyjsonData make_yyjson(Case test_case) {
   data.root = yyjson_mut_obj(data.doc);
   yyjson_mut_doc_set_root(data.doc, data.root);
   auto add_string = [&](const std::string& key, const std::string& value) {
-    yyjson_mut_obj_add_str(data.doc, data.root, key.c_str(), value.c_str());
+    yyjson_mut_obj_add_strcpy(data.doc, data.root, key.c_str(), value.c_str());
   };
   auto add_int = [&](const std::string& key, std::int64_t value) {
     yyjson_mut_obj_add_sint(data.doc, data.root, key.c_str(), value);
