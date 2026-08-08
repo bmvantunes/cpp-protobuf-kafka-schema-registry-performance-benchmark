@@ -3,7 +3,10 @@ FROM ubuntu:26.04
 ARG BUF_VERSION=1.72.0
 ARG BOOST_VERSION=1.91.0
 ARG BOOST_ARCHIVE_VERSION=1_91_0
+ARG BENCHMARK_BOOST_INSTALL_MODE=binary
+ARG BENCHMARK_BOOST_REPORT_VERSION=${BOOST_VERSION}
 ARG CMAKE_VERSION=4.4.2
+ARG BENCHMARK_CMAKE_INSTALL_MODE=binary
 ARG PROTOBUF_VERSION=35.1
 ARG PROTOBUF_C_VERSION=1.5.2
 ARG RDKAFKA_VERSION=2.15.0
@@ -18,7 +21,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LD_LIBRARY_PATH=/usr/local/lib \
     PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig \
     BENCHMARK_BUF_VERSION=${BUF_VERSION} \
-    BENCHMARK_BOOST_VERSION=${BOOST_VERSION} \
+    BENCHMARK_BOOST_VERSION=${BENCHMARK_BOOST_REPORT_VERSION} \
     BENCHMARK_CMAKE_VERSION=${CMAKE_VERSION} \
     BENCHMARK_PROTOBUF_VERSION=${PROTOBUF_VERSION} \
     BENCHMARK_PROTOBUF_C_VERSION=${PROTOBUF_C_VERSION} \
@@ -36,6 +39,7 @@ RUN apt-get update \
        autoconf \
        automake \
        ca-certificates \
+       cmake \
        curl \
        git \
        libabsl-dev \
@@ -64,18 +68,23 @@ RUN case "${TARGETARCH}" in \
     && chmod +x /usr/local/bin/buf \
        && buf --version
 
-RUN case "${TARGETARCH}" in \
-      amd64) CMAKE_ARCH=x86_64 ;; \
-      arm64) CMAKE_ARCH=aarch64 ;; \
-      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-    && curl --fail --silent --show-error --location \
-       "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.sh" \
-       --output /tmp/cmake.sh \
-    && chmod +x /tmp/cmake.sh \
-    && /tmp/cmake.sh --skip-license --prefix=/usr/local \
-    && rm /tmp/cmake.sh \
-    && cmake --version
+RUN if [ "${BENCHMARK_CMAKE_INSTALL_MODE}" = "apt" ]; then \
+      echo "Using Ubuntu-packaged CMake for emulation compatibility"; \
+      cmake --version; \
+    else \
+      case "${TARGETARCH}" in \
+        amd64) CMAKE_ARCH=x86_64 ;; \
+        arm64) CMAKE_ARCH=aarch64 ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+      esac \
+      && curl --fail --silent --show-error --location \
+         "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.sh" \
+         --output /tmp/cmake.sh \
+      && chmod +x /tmp/cmake.sh \
+      && /tmp/cmake.sh --skip-license --prefix=/usr/local \
+      && rm /tmp/cmake.sh \
+      && cmake --version; \
+    fi
 
 RUN git clone --depth 1 --branch "v${PROTOBUF_VERSION}" https://github.com/protocolbuffers/protobuf.git /opt/protobuf \
     && cmake -S /opt/protobuf -B /tmp/protobuf-build -G Ninja \
@@ -128,16 +137,24 @@ RUN git clone --depth 1 --branch "v${NLOHMANN_JSON_VERSION}" https://github.com/
     && ldconfig \
     && rm -rf /tmp/nlohmann-json-build /opt/nlohmann-json
 
-RUN curl --fail --silent --show-error --location \
-       "https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_ARCHIVE_VERSION}.tar.gz" \
-       --output /tmp/boost.tar.gz \
-    && mkdir -p /opt/boost \
-    && tar -xzf /tmp/boost.tar.gz --strip-components=1 -C /opt/boost \
-    && cd /opt/boost \
-    && ./bootstrap.sh --with-libraries=json --prefix=/usr/local \
-    && ./b2 -j2 variant=release link=shared threading=multi install \
-    && ldconfig \
-    && rm -rf /tmp/boost.tar.gz /opt/boost
+RUN if [ "${BENCHMARK_BOOST_INSTALL_MODE}" = "apt" ]; then \
+      echo "Using Ubuntu-packaged Boost.JSON for emulation compatibility"; \
+      apt-get update \
+      && apt-get install -y --no-install-recommends libboost-json-dev \
+      && rm -rf /var/lib/apt/lists/* \
+      && ldconfig; \
+    else \
+      curl --fail --silent --show-error --location \
+         "https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_ARCHIVE_VERSION}.tar.gz" \
+         --output /tmp/boost.tar.gz \
+      && mkdir -p /opt/boost \
+      && tar -xzf /tmp/boost.tar.gz --strip-components=1 -C /opt/boost \
+      && cd /opt/boost \
+      && ./bootstrap.sh --with-libraries=json --prefix=/usr/local \
+      && ./b2 -j2 variant=release link=shared threading=multi install \
+      && ldconfig \
+      && rm -rf /tmp/boost.tar.gz /opt/boost; \
+    fi
 
 WORKDIR /work
 COPY . /work

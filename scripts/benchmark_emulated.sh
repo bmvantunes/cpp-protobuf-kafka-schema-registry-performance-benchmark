@@ -13,7 +13,11 @@ uname -a > "${RESULTS_DIR}/docker-host.txt"
 docker version > "${RESULTS_DIR}/docker-version.txt"
 docker info > "${RESULTS_DIR}/docker-info.txt"
 
-docker build --platform "${PLATFORM}" --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
+docker build --platform "${PLATFORM}" \
+  --build-arg BENCHMARK_CMAKE_INSTALL_MODE=apt \
+  --build-arg BENCHMARK_BOOST_INSTALL_MODE=apt \
+  --build-arg BENCHMARK_BOOST_REPORT_VERSION=1.90.0 \
+  --progress=plain -t "${IMAGE_NAME}" "${ROOT_DIR}"
 docker run --rm --platform "${PLATFORM}" \
   --network=none \
   --cpuset-cpus="${CPUSET_CPUS:-0}" \
