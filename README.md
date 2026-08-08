@@ -93,3 +93,13 @@ Measure varint and string-size sensitivity with:
 ```
 
 This covers small, large, negative, and mixed int64 values, plus short ASCII, long ASCII, and multibyte UTF-8 strings. It uses a pre-populated 1,024-message corpus and runs one million encodes per repetition for ten repetitions. Results are written to `results/DISTRIBUTION_REPORT.md`.
+
+## Concurrency and contention phase
+
+Run the multi-threaded encoding matrix with:
+
+```bash
+./scripts/benchmark_concurrency.sh
+```
+
+The default run uses 1/2/4/8 workers and compares per-thread state, a shared immutable message with independent buffers, and a deliberately mutex-protected shared output buffer. Each configuration performs one million total encodes per repetition for ten repetitions. Results are written to `results/CONCURRENCY_REPORT.md`.
