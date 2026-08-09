@@ -69,14 +69,13 @@ def main():
     metadata = read_metadata(args.metadata)
     expected_iterations = int(metadata.get("iterations", "1000000"))
     expected_repetitions = int(metadata.get("repetitions", "10"))
-    files = sorted(glob.glob(args.glob))
-    offset = 0
-    for path in files:
-        file_rows = rows[offset : offset + expected_repetitions]
-        validate_rows(path, file_rows, expected_iterations, expected_repetitions)
-        offset += expected_repetitions
-    if offset != len(rows):
-        raise SystemExit("Kafka CSV row accounting mismatch")
+    for key, values in groups.items():
+        validate_rows(
+            "configuration=" + "/".join(key),
+            values,
+            expected_iterations,
+            expected_repetitions,
+        )
     lines = [
         "# Kafka producer benchmark",
         "",
