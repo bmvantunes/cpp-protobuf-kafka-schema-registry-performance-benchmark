@@ -1149,3 +1149,233 @@ git diff --exit-code
 Then test imports/builds for ES, Python Protobuf, Python Connect, pure C++ Protobuf, and C++ gRPC. Also test checksum verification, clean downstream CMake consumption, and Registry registration from the exact release's schema artifact.
 
 The HFT producer should depend only on trading-contracts-cpp-protobuf unless it genuinely makes RPC calls. The final language policy is: ConnectRPC for Node/Python services, official Google Protobuf C++ for Kafka payloads, and official gRPC C++ for C++ RPC clients. A Connect-compatible server can still be called from C++ through its gRPC-compatible endpoint.
+
+
+## 16. Pipe-delimited logs and Protobuf Kafka values
+
+The current system writes pipe-delimited text to both logs and Kafka. Change the output contract to:
+
+~~~text
+one typed in-memory event
+        |
+        +--> pipe-delimited human-readable log line
+        |
+        +--> one Confluent-framed Protobuf serialization for Kafka
+~~~
+
+Do not serialize Protobuf and then parse it back to create the log line. Do not call DebugString, TextFormat, or Protobuf JSON for logging. Keep the original typed event as the source for both outputs.
+
+### 16.1 Use one event model
+
+Create or retain an application-level event structure:
+
+~~~cpp
+struct MarketEvent {
+  std::string venue;
+  std::string symbol;
+  std::uint64_t instrument_id;
+  std::int64_t sequence;
+  std::int64_t event_time_unix_nanos;
+  std::int64_t price_scaled_8;
+  std::int64_t quantity;
+  std::string source;
+};
+~~~
+
+For each event:
+
+1. Populate MarketEvent from the feed or trading logic.
+2. Copy its fields into the generated Protobuf key/value messages.
+3. Serialize the key and value exactly once into reusable Kafka buffers.
+4. Enqueue those buffers to librdkafka.
+5. If logging is enabled for this event, format a pipe-delimited line directly from MarketEvent.
+
+Example:
+
+~~~text
+XNAS|BTC-USD|42|123456|1750000000000000000|123456789|100|feed-a
+~~~
+
+Document the log column order permanently. A log format is also an interface; changing field order casually will break parsers.
+
+### 16.2 Core loop shape
+
+~~~cpp
+MarketEvent event = next_market_event();
+
+winning::keys::v1::TestKey key;
+key.set_venue(event.venue);
+key.set_symbol(event.symbol);
+key.set_instrument_id(event.instrument_id);
+
+winning::values::v1::TestValue value;
+value.set_symbol(event.symbol);
+value.set_instrument_id(event.instrument_id);
+value.set_sequence(event.sequence);
+value.set_event_time_unix_nanos(event.event_time_unix_nanos);
+value.set_price_scaled_8(event.price_scaled_8);
+value.set_quantity(event.quantity);
+value.set_venue(event.venue);
+value.set_source(event.source);
+
+winning::serialize_confluent_protobuf(
+    key, key_schema_id, reusable_key_bytes);
+
+winning::serialize_confluent_protobuf(
+    value, value_schema_id, reusable_value_bytes);
+
+// Kafka receives the framed binary bytes.
+produce_to_kafka(reusable_key_bytes, reusable_value_bytes);
+
+// Logging is a separate projection from the same event.
+if (log_policy.should_log(event)) {
+  log_queue.try_push(format_pipe_line(event));
+}
+~~~
+
+This performs one Protobuf serialization for Kafka. The pipe formatter is not a second Protobuf serialization; it is a separate human-readable representation generated from the already available application event.
+
+If the log formatter runs synchronously, it still adds text-formatting cost to the producer loop. Prefer putting a complete log record into a bounded asynchronous queue and letting a logging thread write stdout or a file.
+
+### 16.3 Formatting without expensive stream APIs
+
+Do not use these in the producer loop:
+
+~~~cpp
+std::ostringstream
+message.DebugString()
+google::protobuf::TextFormat
+protobuf JSON serialization
+~~~
+
+Use a preallocated formatter such as the company's existing logging library, fmt::memory_buffer, or a small formatter based on std::to_chars. The formatter should:
+
+- reserve enough space for the largest line;
+- append fields in the documented order;
+- convert integers without locale handling;
+- preserve exact decimal text when the source value is a string;
+- append one newline;
+- avoid heap allocation in the steady state where practical.
+
+A simple formatter may look like:
+
+~~~cpp
+std::string format_pipe_line(const MarketEvent& event) {
+  std::string line;
+  line.reserve(256);
+  line += event.venue;
+  line += '|';
+  line += event.symbol;
+  line += '|';
+  line += std::to_string(event.instrument_id);
+  line += '|';
+  line += std::to_string(event.sequence);
+  line += '|';
+  line += std::to_string(event.event_time_unix_nanos);
+  line += '|';
+  line += std::to_string(event.price_scaled_8);
+  line += '|';
+  line += std::to_string(event.quantity);
+  line += '|';
+  line += event.source;
+  line += '\n';
+  return line;
+}
+~~~
+
+This example is intentionally clear rather than maximally optimized. Benchmark it against the work logger. For the lowest latency, replace std::to_string with a reusable buffer and std::to_chars, or use the organization's approved asynchronous logger.
+
+If the business requires decimal text such as 1.23456789 in logs, retain the original decimal string in MarketEvent. Do not reconstruct decimal text from a scaled integer unless the formatting rule is explicitly fixed and tested.
+
+### 16.4 Logging must not block Kafka
+
+stdout is not a free output channel. A pipe, terminal, Docker log driver, or collector can block. A blocking write can stall the Kafka producer and invalidate the encoding benchmark.
+
+Use one of these policies:
+
+~~~text
+Production:
+  log only selected fields
+  sample records
+  enqueue to an asynchronous logger
+  drop logs when the bounded queue is full
+  expose a dropped-log counter
+
+Debug/replay:
+  allow every event to be logged
+  accept that throughput and latency are not production numbers
+~~~
+
+Never make Kafka delivery wait indefinitely for stdout. If a log line must be durable, send it through a separate durable logging pipeline; do not turn the Kafka producer's hot path into a synchronous log writer.
+
+The logging queue must own its data. Do not place pointers to reusable Kafka buffers in an asynchronous queue and then reuse those buffers before the logging thread is finished. Queue either:
+
+- the already formatted pipe line; or
+- a copied compact LogRecord containing the fields needed by the logger.
+
+The Kafka byte buffers and the log queue therefore have independent lifetimes.
+
+### 16.5 Do not include the pipe text in Kafka
+
+The Kafka value must be only:
+
+~~~text
+six-byte Confluent Protobuf prefix
++
+generated Protobuf wire payload
+~~~
+
+Do not concatenate:
+
+~~~text
+pipe text + delimiter + Protobuf bytes
+~~~
+
+That would create a custom payload format, break normal Protobuf consumers, and prevent standard Schema Registry tooling from understanding the value.
+
+If downstream humans need readable Kafka messages, use an offline consumer or inspection tool that decodes the Protobuf bytes using the schema ID. The producer should keep Kafka values as pure framed Protobuf.
+
+### 16.6 Benchmark the output modes separately
+
+Add explicit modes:
+
+~~~text
+protobuf_kafka_only
+protobuf_kafka_plus_sampled_pipe_log
+protobuf_kafka_plus_async_pipe_log
+protobuf_kafka_plus_sync_pipe_log
+pipe_text_kafka_control
+~~~
+
+The first three are meaningful production candidates. The last mode represents the old design and is useful as a comparison, not as the new contract.
+
+Measure:
+
+- Protobuf encoding time;
+- pipe-formatting time;
+- Kafka enqueue time;
+- Kafka flush/delivery time;
+- logger queue enqueue time;
+- logger queue depth;
+- dropped log count;
+- stdout/file write time;
+- end-to-end producer throughput.
+
+The HFT decision should use the Kafka-only and asynchronous/sampled-log rows. A synchronous pipe log row demonstrates the cost of the old design and should not be mistaken for the cost of Protobuf itself.
+
+### 16.7 Final output rule
+
+The implementation is correct when one event produces:
+
+~~~text
+stdout/log:
+  XNAS|BTC-USD|42|123456|1750000000000000000|123456789|100|feed-a
+
+Kafka key:
+  Confluent-framed winning.keys.v1.TestKey bytes
+
+Kafka value:
+  Confluent-framed winning.values.v1.TestValue bytes
+~~~
+
+The text line and Protobuf payload must come from the same MarketEvent, but they are separate output representations. The Kafka path must never depend on the logger being enabled or healthy.
