@@ -109,6 +109,11 @@ Create buf.gen.winning.yaml at the repository root:
 
 ~~~yaml
 version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: optimize_for
+      value: SPEED
 plugins:
   - protoc_builtin: cpp
     out: generated/winning
@@ -133,6 +138,10 @@ generated/winning/winning/test-values.pb.cc
 ~~~
 
 paths=source_relative makes generated paths follow the source path. It does not change the wire format. The important generated-code performance choice is option optimize_for = SPEED in each schema. SPEED is also the default, but declare it explicitly so it cannot silently change.
+
+The managed-mode override is the enforcement mechanism: Buf rewrites the file option in the generation input for this template, so a developer cannot accidentally generate this target as CODE_SIZE or LITE_RUNTIME. Keep option optimize_for = SPEED in the checked-in proto files as well. That makes the intended contract visible to reviewers and keeps direct protoc or other tooling aligned; Buf still enforces SPEED when this template runs.
+
+If the repository has multiple Buf generation templates that must all enforce the same policy, add the same managed block to each template or consolidate generation behind one canonical template. Managed mode is configured per generation template; adding it only to buf.gen.winning.yaml does not change buf.gen.google_speed.yaml or unrelated templates.
 
 Do not add LITE_RUNTIME to this target unless binary size is a measured requirement. The default recommendation is full Google Protobuf SPEED.
 
@@ -728,4 +737,3 @@ Start with Google Protobuf SPEED and the safe copy path. Test protobuf-c, owners
 - [ ] Reports separate pure encoding, framing, enqueue, Kafka delivery, and Registry control-plane timing.
 - [ ] A smoke test checks the first bytes and IDs of both key and value.
 - [ ] The implementation is committed and pushed only after checks pass.
-
