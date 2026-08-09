@@ -60,6 +60,9 @@ jobs:
       - name: Concurrency and contention
         run: CPUSET_CPUS=0-1 ./scripts/benchmark_concurrency.sh
 
+      - name: Off-hot-path asynchronous pipeline
+        run: CPUSET_CPUS=0-1 SKIP_IMAGE_BUILD=1 IMAGE_NAME="$IMAGE_NAME" ./scripts/benchmark_async_pipeline.sh
+
       - name: Hardware counters
         run: ./scripts/benchmark_perf.sh
 

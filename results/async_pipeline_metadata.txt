@@ -1,0 +1,6 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+queue_capacity=1048576
+handoff_model=preallocated_immutable_event_pool_pointer
+modes=sync_both,async_handoff,async_protobuf,async_pipe,async_both

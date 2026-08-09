@@ -184,6 +184,34 @@ def kafka_rows(root):
     return rows
 
 
+def async_pipeline_matrix():
+    arm_path = ROOT / "async_pipeline_raw.csv"
+    amd_path = ROOT / "amd64" / "async_pipeline_raw.csv"
+    if not arm_path.exists() or not amd_path.exists():
+        return ["The ARM64 and AMD64 asynchronous pipeline raw CSV files are not both available yet.", ""]
+    arm = grouped(read(arm_path), ("mode", "test_case"))
+    amd = grouped(read(amd_path), ("mode", "test_case"))
+    lines = [
+        "| Mode | Payload | ARM64 hot p50/p99 ns | AMD64 hot p50/p99 ns | ARM64 worker p50/p99 ns | AMD64 worker p50/p99 ns | ARM64/AMD64 worker M/s | Drops ARM/AMD |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for key in sorted(arm, key=lambda item: (item[0], PAYLOADS.index(item[1]))):
+        arm_hot = [median(arm[key], field) for field in ("hot_p50_ns", "hot_p99_ns")]
+        amd_hot = [median(amd[key], field) for field in ("hot_p50_ns", "hot_p99_ns")]
+        arm_worker = [median(arm[key], field) for field in ("worker_p50_ns", "worker_p99_ns")]
+        amd_worker = [median(amd[key], field) for field in ("worker_p50_ns", "worker_p99_ns")]
+        arm_mps = median(arm[key], "completed") / median(arm[key], "worker_wall_ns") * 1_000
+        amd_mps = median(amd[key], "completed") / median(amd[key], "worker_wall_ns") * 1_000
+        arm_drops = int(median(arm[key], "dropped"))
+        amd_drops = int(median(amd[key], "dropped"))
+        lines.append(
+            f"| `{key[0]}` | `{key[1]}` | {fmt(arm_hot[0])} / {fmt(arm_hot[1])} | "
+            f"{fmt(amd_hot[0])} / {fmt(amd_hot[1])} | {fmt(arm_worker[0])} / {fmt(arm_worker[1])} | "
+            f"{fmt(amd_worker[0])} / {fmt(amd_worker[1])} | {fmt(arm_mps)} / {fmt(amd_mps)} | {arm_drops}/{amd_drops} |"
+        )
+    return lines
+
+
 def kafka_matrix():
     arm_rows = kafka_rows(ROOT)
     # Each downloaded GitHub shard artifact contains the same assembled 72-row
@@ -356,7 +384,15 @@ def main():
     lines += concurrency_matrix()
     lines += [
         "",
-        "## 7. Real librdkafka/Kafka producer path",
+        "## 7. Off-hot-path asynchronous pipeline",
+        "",
+        "This phase measures the producer-side non-blocking handoff separately from worker-side Protobuf serialization and pipe formatting. It contains no Kafka broker or logging I/O. The handoff baseline uses preallocated immutable event-pool ownership transfer.",
+        "",
+    ]
+    lines += async_pipeline_matrix()
+    lines += [
+        "",
+        "## 8. Real librdkafka/Kafka producer path",
         "",
         "The producer matrix uses the representative 49-byte `one_string_ten_int64` protobuf message and covers ownership, acknowledgements, compression, linger, and batching. Both architectures ran all 72 configurations, each with 10 × 1M messages and zero delivery errors.",
         "",
@@ -364,7 +400,7 @@ def main():
     lines += kafka_matrix()
     lines += [
         "",
-        "## 8. Schema Registry cached framing and live paths",
+        "## 9. Schema Registry cached framing and live paths",
         "",
         "The Confluent protobuf prefix is six bytes: magic byte + four-byte schema ID + one-byte message index. Cached rows are steady-state framing; non-payload rows are HTTP/control-plane operations.",
         "",

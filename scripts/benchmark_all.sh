@@ -24,6 +24,7 @@ run_phase "exact decimal representations" "${ROOT_DIR}/scripts/benchmark_represe
 run_phase "latency and allocations" "${ROOT_DIR}/scripts/benchmark_latency.sh"
 run_phase "value distributions" "${ROOT_DIR}/scripts/benchmark_distributions.sh"
 run_phase "concurrency and contention" "${ROOT_DIR}/scripts/benchmark_concurrency.sh"
+run_phase "off-hot-path asynchronous encoding and logging pipeline" "${ROOT_DIR}/scripts/benchmark_async_pipeline.sh"
 run_phase "hardware counters" "${ROOT_DIR}/scripts/benchmark_perf.sh"
 run_phase "plain Schema Registry" "${ROOT_DIR}/scripts/benchmark_schema_registry.sh"
 run_phase "secure Schema Registry" "${ROOT_DIR}/scripts/benchmark_schema_registry_secure.sh"

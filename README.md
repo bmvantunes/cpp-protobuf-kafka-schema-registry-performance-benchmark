@@ -146,6 +146,18 @@ Run the multi-threaded encoding matrix with:
 
 The default run uses 1/2/4/8 workers and compares per-thread state, a shared immutable message with independent buffers, and a deliberately mutex-protected shared output buffer. Each configuration performs one million total encodes per repetition for ten repetitions. Results are written to `results/CONCURRENCY_REPORT.md`.
 
+## Off-hot-path encoding pipeline phase
+
+Benchmark the architecture where the trading thread only performs a non-blocking handoff and worker threads perform Protobuf encoding and pipe-log formatting:
+
+```bash
+./scripts/benchmark_async_pipeline.sh
+```
+
+The default matrix runs `sync_both`, `async_handoff`, `async_protobuf`, `async_pipe`, and `async_both` for all three required payloads. Every row performs one million attempted events per repetition for ten measured repetitions. The report separates hot-thread handoff p50/p99 from worker-side Protobuf/pipe work, reports worker wall throughput, and records queue drops. The benchmark is intentionally network-free; it measures the boundary before librdkafka and stdout/file I/O.
+
+The baseline handoff uses a preallocated immutable event-pool pointer, which models transferring ownership from a pool without hot-thread allocation or variable-size copying. If the production event is copied into its ring slot, add a copy-ring variant before using that handoff number as a latency budget.
+
 ## Hardware-counter phase
 
 Request cycles, instructions, cache, and branch counters through Docker with:
