@@ -737,3 +737,434 @@ Start with Google Protobuf SPEED and the safe copy path. Test protobuf-c, owners
 - [ ] Reports separate pure encoding, framing, enqueue, Kafka delivery, and Registry control-plane timing.
 - [ ] A smoke test checks the first bytes and IDs of both key and value.
 - [ ] The implementation is committed and pushed only after checks pass.
+
+
+## 15. GitLab CI/CD artifact publishing
+
+Use GitLab as the distribution point:
+
+~~~text
+GitLab Container Registry
+  -> contracts-toolchain:<pinned Buf/protobuf/plugin versions>
+
+GitLab Generic Package Registry
+  -> trading-contracts-cpp-protobuf:<version>
+  -> trading-contracts-cpp-grpc:<version>
+
+GitLab npm Registry
+  -> @company/trading-contracts-es
+
+GitLab PyPI Registry
+  -> company-trading-contracts-protobuf
+  -> company-trading-contracts-grpc
+  -> company-trading-contracts-connect
+~~~
+
+The Container Registry is for OCI images, not ordinary generated headers and .pb.cc files. Store C++ libraries/tarballs in Generic Packages. GitLab's Generic Package Registry is designed for arbitrary versioned files and supports CI job tokens and deploy tokens:
+https://docs.gitlab.com/user/packages/generic_packages/
+
+### 15.1 One release tag drives every language
+
+Use one immutable Git tag:
+
+~~~text
+trading-contracts-v1.4.0
+~~~
+
+That tag must generate and publish all artifacts from the same .proto sources:
+
+~~~text
+ES/TypeScript package       1.4.0
+Python Protobuf package     1.4.0
+Python gRPC package         1.4.0
+Python Connect package      1.4.0
+C++ Protobuf package        1.4.0
+C++ gRPC package            1.4.0
+~~~
+
+Never publish production artifacts from an untagged branch. Pre-release artifacts may use a pipeline ID or commit SHA, but production dependencies use an immutable tag.
+
+### 15.2 Generation differences
+
+| Artifact | Buf generation | Distribution |
+|---|---|---|
+| ES/TypeScript Connect client | bufbuild/es | npm package |
+| Python Protobuf + gRPC | protocolbuffers/python plus grpc/python | PyPI packages |
+| Python Protobuf + Connect | protocolbuffers/python plus connectrpc/py | PyPI packages |
+| C++ Protobuf | built-in cpp | CMake library with .pb.h/.pb.cc |
+| C++ Protobuf + gRPC | built-in cpp plus grpc/cpp or local protoc-gen-grpc | CMake library with .pb.* and .grpc.pb.* |
+
+Current Connect-ES uses a unified bufbuild/es plugin that generates message types and service definitions in one pass. Do not blindly add an old separate connect-es plugin to a Connect-ES 2 setup.
+
+Python has separate Protobuf/gRPC and Connect paths. Retain the exact plugin names already working in the company's repository and pin their versions.
+
+C++ pure Protobuf does not need gRPC. Keep trading-contracts-cpp-protobuf separate from trading-contracts-cpp-grpc so an HFT producer does not pull gRPC into its dependency graph.
+
+### 15.3 Buf templates
+
+ES/Connect-ES:
+
+~~~yaml
+version: v2
+plugins:
+  - remote: buf.build/bufbuild/es:PINNED_VERSION
+    out: gen/es
+~~~
+
+Python with standard gRPC:
+
+~~~yaml
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/python:PINNED_VERSION
+    out: gen/python
+  - remote: buf.build/protocolbuffers/pyi:PINNED_VERSION
+    out: gen/python
+  - remote: buf.build/grpc/python:PINNED_VERSION
+    out: gen/python
+~~~
+
+Python with Connect:
+
+~~~yaml
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/python:PINNED_VERSION
+    out: gen/python
+  - remote: buf.build/protocolbuffers/pyi:PINNED_VERSION
+    out: gen/python
+  - remote: buf.build/connectrpc/py:PINNED_VERSION
+    out: gen/python
+    opt:
+      - protobuf=google
+~~~
+
+Pure C++ Protobuf:
+
+~~~yaml
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: optimize_for
+      value: SPEED
+plugins:
+  - protoc_builtin: cpp
+    out: gen/cpp
+    opt:
+      - paths=source_relative
+~~~
+
+C++ Protobuf plus gRPC:
+
+~~~yaml
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: optimize_for
+      value: SPEED
+plugins:
+  - protoc_builtin: cpp
+    out: gen/cpp
+    opt:
+      - paths=source_relative
+  - remote: buf.build/grpc/cpp:PINNED_VERSION
+    out: gen/cpp
+    opt:
+      - paths=source_relative
+~~~
+
+If hosted gRPC C++ plugins are not allowed, install the exact gRPC C++ plugin inside the pinned Docker toolchain and replace the second entry with:
+
+~~~yaml
+  - local: protoc-gen-grpc
+    out: gen/cpp
+    opt:
+      - paths=source_relative
+~~~
+
+Buf's official remote-plugin guide contains the standard Python Protobuf/gRPC combination. Pin every plugin version in release CI.
+
+### 15.4 C++ package contents
+
+Pure Protobuf package:
+
+~~~text
+trading-contracts-cpp-protobuf-1.4.0.tar.gz
+  include/company/trading/*.pb.h
+  src/company/trading/*.pb.cc
+  lib/cmake/company_trading_contracts/
+  CMakeLists.txt
+  proto/*.proto
+  schema/file_descriptor_set.pb
+  SHA256SUMS
+~~~
+
+The gRPC package additionally contains:
+
+~~~text
+  include/company/trading/*.grpc.pb.h
+  src/company/trading/*.grpc.pb.cc
+~~~
+
+Expose stable CMake targets:
+
+~~~text
+company::trading_contracts_protobuf
+company::trading_contracts_grpc
+~~~
+
+The Protobuf package links to the compatible Protobuf runtime. The gRPC package links to Protobuf plus the approved gRPC C++ runtime. Include the original .proto files or a descriptor-set artifact because deployment may need to register schemas with Confluent Schema Registry.
+
+### 15.5 Pinned Buf toolchain image
+
+Create a dedicated Dockerfile for generation and pin:
+
+~~~text
+BUF_VERSION
+PROTOBUF_VERSION
+GRPC_VERSION
+ES plugin version
+Python plugin versions
+Connect plugin versions
+C++ compiler version
+~~~
+
+Build and push the toolchain image:
+
+~~~bash
+docker login \
+  --username "$CI_REGISTRY_USER" \
+  --password "$CI_REGISTRY_PASSWORD" \
+  "$CI_REGISTRY"
+
+docker build \
+  --file Dockerfile.contracts-toolchain \
+  --tag "$CI_REGISTRY_IMAGE/contracts-toolchain:$CI_COMMIT_TAG" \
+  .
+
+docker push "$CI_REGISTRY_IMAGE/contracts-toolchain:$CI_COMMIT_TAG"
+~~~
+
+Do not use latest for release generation. The image tag or digest must identify the exact toolchain used to create the packages.
+
+If remote plugins are not acceptable, install pinned plugin binaries inside this image and use local entries in the templates. Buf remains the orchestrator; plugins do not have to be downloaded by developers.
+
+### 15.6 GitLab CI skeleton
+
+Replace the image name, package names, current npm/PyPI commands, and C++ target names with the work repository's values.
+
+~~~yaml
+stages:
+  - validate
+  - generate
+  - package
+  - publish
+
+variables:
+  CONTRACT_VERSION: "$CI_COMMIT_TAG"
+  TOOLCHAIN_IMAGE: "$CI_REGISTRY_IMAGE/contracts-toolchain:1.4.0"
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^trading-contracts-v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - when: never
+
+validate:
+  stage: validate
+  image: "$TOOLCHAIN_IMAGE"
+  script:
+    - buf lint
+    - buf build
+    - buf breaking --against '.git#branch=main'
+
+generate:
+  stage: generate
+  image: "$TOOLCHAIN_IMAGE"
+  script:
+    - rm -rf gen
+    - buf generate --template buf.gen.es.yaml
+    - buf generate --template buf.gen.python.grpc.yaml
+    - buf generate --template buf.gen.python.connect.yaml
+    - buf generate --template buf.gen.cpp.yaml
+    - buf generate --template buf.gen.cpp.grpc.yaml
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - gen/
+      - proto/
+      - buf.yaml
+      - buf.lock
+      - buf.gen.*.yaml
+
+package_cpp:
+  stage: package
+  image: "$TOOLCHAIN_IMAGE"
+  needs:
+    - job: generate
+      artifacts: true
+  script:
+    - cmake -S . -B build-cpp -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build-cpp --parallel --target trading_contracts_protobuf
+    - cmake --install build-cpp --prefix dist/cpp-protobuf
+    - cmake -S . -B build-cpp-grpc -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build-cpp-grpc --parallel --target trading_contracts_grpc
+    - cmake --install build-cpp-grpc --prefix dist/cpp-grpc
+    - tar -czf "trading-contracts-cpp-protobuf-$CONTRACT_VERSION.tar.gz" -C dist/cpp-protobuf .
+    - tar -czf "trading-contracts-cpp-grpc-$CONTRACT_VERSION.tar.gz" -C dist/cpp-grpc .
+    - sha256sum trading-contracts-cpp-*.tar.gz > SHA256SUMS
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - trading-contracts-cpp-*.tar.gz
+      - SHA256SUMS
+
+package_es:
+  stage: package
+  image: "$TOOLCHAIN_IMAGE"
+  needs:
+    - job: generate
+      artifacts: true
+  script:
+    - cd packages/es
+    - npm ci
+    - npm pack
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - packages/es/*.tgz
+
+package_python:
+  stage: package
+  image: "$TOOLCHAIN_IMAGE"
+  needs:
+    - job: generate
+      artifacts: true
+  script:
+    - python -m build packages/python-protobuf
+    - python -m build packages/python-grpc
+    - python -m build packages/python-connect
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - packages/*/dist/*.whl
+      - packages/*/dist/*.tar.gz
+
+publish_generic_cpp:
+  stage: publish
+  image: curlimages/curl:latest
+  needs:
+    - job: package_cpp
+      artifacts: true
+  script:
+    - |
+      for file in trading-contracts-cpp-*.tar.gz SHA256SUMS; do
+        curl --fail --location \
+          --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+          --upload-file "$file" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/trading-contracts-cpp/$CONTRACT_VERSION/$file"
+      done
+
+publish_npm:
+  stage: publish
+  image: node:22
+  needs:
+    - job: package_es
+      artifacts: true
+  script:
+    - npm publish packages/es/*.tgz --registry "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/npm/"
+
+publish_pypi:
+  stage: publish
+  image: python:3.13
+  needs:
+    - job: package_python
+      artifacts: true
+  script:
+    - python -m pip install --no-cache-dir twine
+    - >
+      python -m twine upload
+      --repository-url "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/pypi"
+      --username "gitlab-ci-token"
+      --password "$CI_JOB_TOKEN"
+      packages/*/dist/*
+~~~
+
+The C++ job is separate from ES/Python because C++ output is source plus a CMake library, while ES/Python output is a language-native package.
+
+### 15.7 Pulling the C++ package from another GitLab project
+
+Use an authorized job token in downstream CI or a read-only deploy token for developer machines:
+
+~~~bash
+VERSION=1.4.0
+PACKAGE=trading-contracts-cpp
+PROJECT_ID=CONTRACT_PROJECT_ID
+
+curl --fail --location \
+  --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+  "$CI_API_V4_URL/projects/$PROJECT_ID/packages/generic/$PACKAGE/$VERSION/trading-contracts-cpp-protobuf-$VERSION.tar.gz" \
+  --output /tmp/trading-contracts-cpp.tar.gz
+
+curl --fail --location \
+  --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+  "$CI_API_V4_URL/projects/$PROJECT_ID/packages/generic/$PACKAGE/$VERSION/SHA256SUMS" \
+  --output /tmp/SHA256SUMS
+
+cd /tmp
+sha256sum -c SHA256SUMS
+mkdir -p trading-contracts
+tar -xzf trading-contracts-cpp.tar.gz -C trading-contracts
+~~~
+
+Then:
+
+~~~cmake
+add_subdirectory(/tmp/trading-contracts)
+
+target_link_libraries(my_app
+  PRIVATE
+    company::trading_contracts_protobuf
+)
+~~~
+
+Never commit GitLab tokens into CMake, Dockerfiles, CI configuration, or source code.
+
+### 15.8 Schema Registry is a separate deployment step
+
+The package pipeline generates and packages code. Deployment registers the matching schemas:
+
+~~~text
+test-topic-key   <- proto from contracts release v1.4.0
+test-topic-value <- proto from contracts release v1.4.0
+~~~
+
+Deployment should:
+
+1. Register or look up the key schema.
+2. Register or look up the value schema.
+3. Verify compatibility.
+4. Record the resulting IDs for that Registry environment.
+5. Start the producer with those subjects/IDs available.
+6. Let the producer cache the IDs before its hot loop.
+
+Do not confuse Git/package version 1.4.0 with a Schema Registry numeric ID. The package version can be consistent across languages; the numeric ID is assigned by each Registry environment and must not be hard-coded into the C++ package.
+
+### 15.9 Release checks
+
+~~~bash
+buf lint
+buf build
+buf breaking --against '.git#branch=main'
+buf generate --template buf.gen.es.yaml
+buf generate --template buf.gen.python.grpc.yaml
+buf generate --template buf.gen.python.connect.yaml
+buf generate --template buf.gen.cpp.yaml
+buf generate --template buf.gen.cpp.grpc.yaml
+git diff --exit-code
+~~~
+
+Then test imports/builds for ES, Python Protobuf, Python gRPC, Python Connect, pure C++ Protobuf, and C++ gRPC. Also test checksum verification, clean downstream CMake consumption, and Registry registration from the exact release's schema artifact.
+
+The HFT producer should depend only on trading-contracts-cpp-protobuf unless it genuinely makes RPC calls.
