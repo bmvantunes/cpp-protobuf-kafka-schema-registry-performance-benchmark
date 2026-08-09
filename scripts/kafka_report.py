@@ -27,6 +27,26 @@ def read_metadata(path):
     return values
 
 
+def validate_rows(path, rows, expected_iterations, expected_repetitions):
+    if len(rows) != expected_repetitions:
+        raise SystemExit(
+            f"{path}: expected {expected_repetitions} rows, found {len(rows)}"
+        )
+    repetitions = []
+    for row in rows:
+        if int(row["iterations"]) != expected_iterations:
+            raise SystemExit(
+                f"{path}: expected {expected_iterations} iterations, "
+                f"found {row['iterations']}"
+            )
+        repetitions.append(int(row["repetition"]))
+    if repetitions != list(range(1, expected_repetitions + 1)):
+        raise SystemExit(
+            f"{path}: expected repetitions 1..{expected_repetitions}, "
+            f"found {repetitions}"
+        )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--glob", required=True)
@@ -47,6 +67,16 @@ def main():
         groups.setdefault(key, []).append(row)
 
     metadata = read_metadata(args.metadata)
+    expected_iterations = int(metadata.get("iterations", "1000000"))
+    expected_repetitions = int(metadata.get("repetitions", "10"))
+    files = sorted(glob.glob(args.glob))
+    offset = 0
+    for path in files:
+        file_rows = rows[offset : offset + expected_repetitions]
+        validate_rows(path, file_rows, expected_iterations, expected_repetitions)
+        offset += expected_repetitions
+    if offset != len(rows):
+        raise SystemExit("Kafka CSV row accounting mismatch")
     lines = [
         "# Kafka producer benchmark",
         "",
@@ -55,8 +85,8 @@ def main():
         "## Run contract",
         "",
         f"- Configurations: `{metadata.get('runs', '?')}`",
-        f"- Encodes/messages per repetition: `{metadata.get('iterations', '?')}`",
-        f"- Repetitions per configuration: `{metadata.get('repetitions', '?')}`",
+        f"- Encodes/messages per repetition: `{expected_iterations}`",
+        f"- Repetitions per configuration: `{expected_repetitions}`",
         "- `enqueue` covers serialization plus the librdkafka `produce()` handoff.",
         "- `flush` covers the remaining producer/broker delivery time for the configured acknowledgement mode.",
         "- `end_to_end` is enqueue plus flush and is the relevant result for this producer-path benchmark.",

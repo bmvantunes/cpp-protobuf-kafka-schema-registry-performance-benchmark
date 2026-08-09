@@ -4,6 +4,10 @@ import csv
 from pathlib import Path
 
 
+EXPECTED_ITERATIONS = 1_000_000
+EXPECTED_REPETITIONS = 10
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", required=True)
@@ -25,7 +29,26 @@ def main():
                 fieldnames = reader.fieldnames
             elif reader.fieldnames != fieldnames:
                 raise SystemExit(f"CSV header mismatch in {path}")
-            rows.extend(reader)
+            file_rows = list(reader)
+            if len(file_rows) != EXPECTED_REPETITIONS:
+                raise SystemExit(
+                    f"{path}: expected {EXPECTED_REPETITIONS} rows, "
+                    f"found {len(file_rows)}"
+                )
+            repetitions = []
+            for row in file_rows:
+                if int(row["iterations"]) != EXPECTED_ITERATIONS:
+                    raise SystemExit(
+                        f"{path}: expected {EXPECTED_ITERATIONS} iterations, "
+                        f"found {row['iterations']}"
+                    )
+                repetitions.append(int(row["repetition"]))
+            if repetitions != list(range(1, EXPECTED_REPETITIONS + 1)):
+                raise SystemExit(
+                    f"{path}: expected repetitions 1..{EXPECTED_REPETITIONS}, "
+                    f"found {repetitions}"
+                )
+            rows.extend(file_rows)
 
     with Path(args.csv).open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
