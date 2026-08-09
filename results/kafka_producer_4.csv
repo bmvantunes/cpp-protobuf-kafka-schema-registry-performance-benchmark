@@ -1,0 +1,11 @@
+kind,library,codegen,api,test_case,repetition,iterations,bytes,enqueue_elapsed_ns,flush_elapsed_ns,end_to_end_ns,ns_per_encode,encodes_per_second,delivery_errors,mode,acks,compression,linger_ms,batch_num_messages
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,1,1000000,49,584121942.000,26499247.000,610621189.000,610.621,1637676.546,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,2,1000000,49,511178314.000,8646386.000,519824700.000,519.825,1923725.441,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,3,1000000,49,524717628.000,59229978.000,583947606.000,583.948,1712482.404,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,4,1000000,49,593790755.000,67289274.000,661080029.000,661.080,1512676.160,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,5,1000000,49,782211764.000,56798577.000,839010341.000,839.010,1191880.423,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,6,1000000,49,707305200.000,80375875.000,787681075.000,787.681,1269549.354,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,7,1000000,49,769847507.000,69606008.000,839453515.000,839.454,1191251.192,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,8,1000000,49,698046226.000,90515152.000,788561378.000,788.561,1268132.105,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,9,1000000,49,833276574.000,120822315.000,954098889.000,954.099,1048109.385,0,copy,0,none,5,100
+kafka,confluent_librdkafka,google_speed,produce,one_string_ten_int64,10,1000000,49,718849994.000,73143588.000,791993582.000,791.994,1262636.494,0,copy,0,none,5,100

@@ -1,0 +1,11 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+encoding_plus_kafka_produce=true
+decode_benchmark=false
+mode=copy
+acks=0
+compression=zstd
+linger_ms=5
+batch_num_messages=1
+compiler=15.2.0
