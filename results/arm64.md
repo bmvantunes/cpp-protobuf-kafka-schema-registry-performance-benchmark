@@ -790,6 +790,30 @@ The companion `REPORT.md` contains the complete pure protobuf/JSON library matri
 - This does not replace a full compatibility-policy matrix; production rollout should also test breaking changes and the configured BACKWARD/FORWARD/FULL policy explicitly.
 
 
+## Conclusion
+
+### Recommendation for this ARM64 host
+
+Use Buf-generated Google protobuf C++ `SPEED` types with a reused caller-owned buffer and preallocated `SerializeToArray` as the default implementation. It is the best cross-architecture baseline and the cleanest fit for Confluent framing. On this ARM64 run, `LITE_RUNTIME` was marginally fastest for the compact int64 payload (80.39 ns), Google `SPEED` plus `SerializeToString` led the smaller decimal-string payload (160.29 ns), and protobuf-c `pack_preallocated` led the largest string-heavy payload (496.38 ns).
+
+Protobuf-c is worth a targeted optimization when a stable message type is proven hot: it won on the largest ARM64 payload, but it was not the universal winner. `CODE_SIZE` should not be used in the HFT path; it was much slower. JSON/yyjson remains useful for interoperability, not for the lowest-latency wire path.
+
+### Schema Registry without Kafka
+
+The cached Confluent prefix adds six bytes. ARM64 pure protobuf versus cached in-place framing measured:
+
+| Payload | Pure protobuf ns | Cached in-place ns | Overhead |
+|---|---:|---:|---:|
+| `one_string_ten_int64` | 82.52 | 83.62 | +1.33% |
+| `one_string_ten_decimal_strings` | 203.28 | 150.16 | -26.13%* |
+| `ten_strings_fifty_decimal_strings` | 600.22 | 608.63 | +1.40% |
+
+`*` The negative decimal row is measurement noise from separate runs, not a real Registry speedup. The stable conclusion is that cached framing is approximately low-single-digit overhead; live Registry lookup/registration is millisecond-scale and belongs in startup or recovery, never per message.
+
+### Operating rule
+
+Cache the schema ID before the producer hot path, serialize into a reused buffer with reserved prefix space, and keep Registry HTTP and Kafka delivery policy outside the encoding decision. This run is representative ARM64 lab evidence, not a production bare-metal SLA.
+
 ## Toolchain and host metadata
 
 ### toolchain_versions.txt

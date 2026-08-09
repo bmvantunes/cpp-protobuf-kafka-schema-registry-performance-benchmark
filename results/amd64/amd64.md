@@ -720,6 +720,22 @@ Server:
  Live Restore Enabled: false
 ```
 
+## Conclusion
+
+### Recommendation for native AMD64
+
+Use Buf-generated Google protobuf C++ `SPEED` types with a reused caller-owned buffer and preallocated `SerializeToArray` as the default implementation. Google `SPEED` is the strongest choice for the compact int64 path; protobuf-c `pack_preallocated` is the targeted choice when the tested decimal-string or large string-heavy message is the measured bottleneck. Keep Buf as the schema-generation workflow even if one specialized message later uses protobuf-c.
+
+Avoid `CODE_SIZE` in the HFT path because it was dramatically slower. JSON/yyjson is the strongest JSON option in the tested set, but protobuf is smaller and generally faster for the Kafka payloads.
+
+### Schema Registry without Kafka
+
+The cached Confluent prefix is six bytes. In the native AMD64 Registry framing runs, cached in-place framing remained low-single-digit overhead relative to the matching pure protobuf baseline on the stable rows; copying and serializer-string paths add more work. Live lookup and registration are millisecond-scale control-plane operations, so they must not run per message.
+
+### Operating rule
+
+Resolve and cache the schema ID during startup, deployment, or controlled recovery. Serialize directly into a buffer with reserved prefix space. GitHub’s native AMD64 result is useful architecture evidence, but it is not a production bare-metal SLA.
+
 ## Raw artifacts
 
 The accompanying workflow artifact contains the raw CSV files, metadata, Docker version output, and this report. CSV files are retained for statistical re-analysis; the tables above are the human-readable snapshot committed or uploaded for review.
