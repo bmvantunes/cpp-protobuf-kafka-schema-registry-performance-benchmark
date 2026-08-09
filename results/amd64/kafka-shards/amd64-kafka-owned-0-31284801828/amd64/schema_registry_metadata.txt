@@ -1,0 +1,11 @@
+steady_state_iterations=1000000
+steady_state_repetitions=10
+steady_state_warmup_iterations=10000
+network_repetitions=10
+network_iterations_per_repetition=1
+registry_url=http://schema-registry:8081
+failure_url=http://schema-registry:65530
+tls_insecure=false
+basic_auth_enabled=false
+confluent_protobuf_prefix_bytes=6
+cold_network_paths_are_not_1m_by_design=true

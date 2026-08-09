@@ -1,0 +1,4 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+per_encode_timing=true

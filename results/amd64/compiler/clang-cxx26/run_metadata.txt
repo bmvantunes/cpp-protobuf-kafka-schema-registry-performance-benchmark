@@ -1,0 +1,18 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+encoding_only=true
+protobuf_decimal_representation=string
+json_decimal_representation=string
+compiler=Ubuntu Clang 22.1.2 (1ubuntu1)
+variant=clang-cxx26
+compiler_name=Clang 22.1.2 C++26
+cc=clang-22
+cxx=clang++-22
+compiler_version=Ubuntu clang version 22.1.2 (1ubuntu1)
+cxx_standard=26
+architecture=x86_64
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+compiler_flags=-O3 -march=native -DNDEBUG

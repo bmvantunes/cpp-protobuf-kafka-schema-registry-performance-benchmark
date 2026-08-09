@@ -1,0 +1,6 @@
+runs=72
+iterations=1000000
+repetitions=10
+shards=6
+encoding_plus_kafka_produce=true
+decode_benchmark=false

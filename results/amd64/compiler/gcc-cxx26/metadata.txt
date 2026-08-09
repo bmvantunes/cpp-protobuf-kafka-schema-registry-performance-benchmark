@@ -1,0 +1,11 @@
+variant=gcc-cxx26
+compiler_name=GCC 15 C++26
+cc=gcc
+cxx=g++
+compiler_version=g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+cxx_standard=26
+architecture=x86_64
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+compiler_flags=-O3 -march=native -DNDEBUG

@@ -1,0 +1,18 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+encoding_only=true
+protobuf_decimal_representation=string
+json_decimal_representation=string
+compiler=15.2.0
+variant=gcc-cxx23
+compiler_name=GCC 15 C++23
+cc=gcc
+cxx=g++
+compiler_version=g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+cxx_standard=23
+architecture=x86_64
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+compiler_flags=-O3 -march=native -DNDEBUG

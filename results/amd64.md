@@ -14,16 +14,17 @@
 
 ## Phase index
 
-- [REPORT.md](amd64/REPORT.md)
-- [REPRESENTATION_REPORT.md](amd64/REPRESENTATION_REPORT.md)
-- [LATENCY_REPORT.md](amd64/LATENCY_REPORT.md)
-- [DISTRIBUTION_REPORT.md](amd64/DISTRIBUTION_REPORT.md)
-- [CONCURRENCY_REPORT.md](amd64/CONCURRENCY_REPORT.md)
-- [PERF_REPORT.md](amd64/PERF_REPORT.md)
-- [KAFKA_PRODUCER_REPORT.md](amd64/KAFKA_PRODUCER_REPORT.md)
-- [SCHEMA_REGISTRY_REPORT.md](amd64/SCHEMA_REGISTRY_REPORT.md)
-- [SCHEMA_REGISTRY_SECURE_REPORT.md](amd64/SCHEMA_REGISTRY_SECURE_REPORT.md)
-- [SCHEMA_EVOLUTION_REPORT.md](amd64/SCHEMA_EVOLUTION_REPORT.md)
+- [REPORT.md](#reportmd)
+- [COMPILER_REPORT.md](#compiler-reportmd)
+- [REPRESENTATION_REPORT.md](#representation-reportmd)
+- [LATENCY_REPORT.md](#latency-reportmd)
+- [DISTRIBUTION_REPORT.md](#distribution-reportmd)
+- [CONCURRENCY_REPORT.md](#concurrency-reportmd)
+- [PERF_REPORT.md](#perf-reportmd)
+- [KAFKA_PRODUCER_REPORT.md](#kafka-producer-reportmd)
+- [SCHEMA_REGISTRY_REPORT.md](#schema-registry-reportmd)
+- [SCHEMA_REGISTRY_SECURE_REPORT.md](#schema-registry-secure-reportmd)
+- [SCHEMA_EVOLUTION_REPORT.md](#schema-evolution-reportmd)
 
 ## REPORT.md
 
@@ -45,101 +46,295 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 
 | Payload | Fastest | Median ns/encode | Encodes/sec | Bytes |
 |---|---|---:|---:|---:|
-| one_string_ten_decimal_strings | protobuf_c / c_generated / pack_preallocated | 102.86 | 9.73 M/s | 213 |
-| one_string_ten_int64 | google_protobuf / speed / SerializeToArray_preallocated | 56.13 | 17.78 M/s | 49 |
-| ten_strings_fifty_decimal_strings | protobuf_c / c_generated / pack_preallocated | 623.04 | 1.60 M/s | 1193 |
+| one_string_ten_decimal_strings | protobuf_c / c_generated / pack_preallocated | 116.36 | 8.57 M/s | 213 |
+| one_string_ten_int64 | google_protobuf / speed / SerializeToArray_preallocated | 47.21 | 21.12 M/s | 49 |
+| ten_strings_fifty_decimal_strings | protobuf_c / c_generated / pack_preallocated | 702.36 | 1.42 M/s | 1193 |
 
 ## Full aggregate results
 
 | Kind | Library | Codegen | API | Payload | Reps | Bytes | Median ns/encode | Mean ns/encode | Mean M/s |
 |---|---|---|---|---|---:|---:|---:|---:|---:|
-| protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 213 | 102.86 | 102.79 | 9.73 |
-| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 161.00 | 160.63 | 6.23 |
-| protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 161.64 | 163.88 | 6.11 |
-| protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 165.71 | 165.53 | 6.04 |
-| protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 168.59 | 168.25 | 5.94 |
-| json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 364 | 272.21 | 271.94 | 3.68 |
-| json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 419 | 276.36 | 276.72 | 3.61 |
-| json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 364 | 889.61 | 890.00 | 1.12 |
-| json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 364 | 1,051.49 | 1,051.83 | 0.95 |
-| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 1,683.87 | 1,683.48 | 0.59 |
-| protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 1,690.25 | 1,689.29 | 0.59 |
-| json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 364 | 2,520.56 | 2,520.63 | 0.40 |
-| protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 56.13 | 56.27 | 17.78 |
-| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 59.59 | 59.35 | 16.85 |
-| protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 49 | 64.47 | 64.58 | 15.49 |
-| protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 49 | 66.45 | 66.43 | 15.06 |
-| protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 49 | 80.94 | 81.25 | 12.31 |
-| json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 215 | 124.69 | 124.80 | 8.01 |
-| json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 210 | 343.81 | 343.88 | 2.91 |
-| json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 210 | 443.96 | 444.14 | 2.25 |
-| json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 210 | 563.18 | 563.29 | 1.78 |
-| protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 49 | 1,375.39 | 1,376.55 | 0.73 |
-| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 1,378.07 | 1,378.08 | 0.73 |
-| json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 210 | 2,375.79 | 2,374.96 | 0.42 |
-| protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 623.04 | 623.56 | 1.60 |
-| protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 904.73 | 904.58 | 1.11 |
-| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 906.21 | 906.63 | 1.10 |
-| protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 923.97 | 925.53 | 1.08 |
-| protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 924.16 | 922.36 | 1.08 |
-| json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 2279 | 1,203.38 | 1,204.22 | 0.83 |
-| json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1979 | 1,406.87 | 1,407.96 | 0.71 |
-| json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 1979 | 4,748.27 | 4,747.51 | 0.21 |
-| json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 1979 | 5,504.40 | 5,507.53 | 0.18 |
-| protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 8,639.62 | 8,648.08 | 0.12 |
-| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 8,658.39 | 8,671.60 | 0.12 |
-| json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 1979 | 12,631.27 | 12,619.84 | 0.08 |
+| protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 213 | 116.36 | 116.66 | 8.57 |
+| protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 139.91 | 140.81 | 7.11 |
+| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 140.67 | 142.51 | 7.03 |
+| protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 143.32 | 143.77 | 6.96 |
+| protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 144.26 | 146.88 | 6.83 |
+| json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 364 | 222.51 | 222.56 | 4.49 |
+| json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 419 | 226.96 | 227.09 | 4.40 |
+| json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 364 | 748.97 | 751.91 | 1.33 |
+| json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 364 | 888.05 | 889.48 | 1.12 |
+| protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 213 | 1,423.92 | 1,429.49 | 0.70 |
+| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 213 | 1,426.32 | 1,429.72 | 0.70 |
+| json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 364 | 1,791.66 | 1,790.86 | 0.56 |
+| protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 47.21 | 47.37 | 21.12 |
+| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 50.01 | 50.11 | 19.96 |
+| protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 49 | 53.73 | 53.81 | 18.59 |
+| protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 49 | 54.85 | 55.81 | 17.95 |
+| protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 49 | 82.44 | 82.41 | 12.13 |
+| json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 215 | 104.31 | 104.34 | 9.58 |
+| json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 210 | 312.70 | 313.53 | 3.19 |
+| json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 210 | 370.57 | 370.46 | 2.70 |
+| json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 210 | 507.06 | 506.81 | 1.97 |
+| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49 | 1,157.83 | 1,160.01 | 0.86 |
+| protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 49 | 1,158.06 | 1,159.56 | 0.86 |
+| json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 210 | 1,618.77 | 1,617.08 | 0.62 |
+| protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 702.36 | 706.53 | 1.42 |
+| protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 763.89 | 762.98 | 1.31 |
+| protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 765.10 | 763.42 | 1.31 |
+| protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 781.52 | 783.94 | 1.28 |
+| protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 783.68 | 781.81 | 1.28 |
+| json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 2279 | 1,011.58 | 1,015.07 | 0.99 |
+| json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1979 | 1,112.29 | 1,118.66 | 0.89 |
+| json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 1979 | 4,022.24 | 4,029.08 | 0.25 |
+| json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 1979 | 4,649.88 | 4,645.99 | 0.22 |
+| protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 1193 | 7,304.08 | 7,311.83 | 0.14 |
+| protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 1193 | 7,310.58 | 7,310.01 | 0.14 |
+| json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 1979 | 9,682.19 | 9,695.02 | 0.10 |
 
 ## Protobuf-only comparison
 
 | Payload | Library / generation | API | Median ns/encode | Relative to fastest protobuf |
 |---|---|---|---:|---:|
-| one_string_ten_decimal_strings | protobuf_c / c_generated | pack_preallocated | 102.86 | 1.00x |
-| one_string_ten_decimal_strings | google_protobuf / lite_runtime | SerializeToArray_preallocated | 161.00 | 1.57x |
-| one_string_ten_decimal_strings | google_protobuf / speed | SerializeToArray_preallocated | 161.64 | 1.57x |
-| one_string_ten_decimal_strings | google_protobuf / speed | SerializeToString | 165.71 | 1.61x |
-| one_string_ten_decimal_strings | google_protobuf / lite_runtime | SerializeToString | 168.59 | 1.64x |
-| one_string_ten_decimal_strings | google_protobuf / code_size | SerializeToArray_preallocated | 1,683.87 | 16.37x |
-| one_string_ten_decimal_strings | google_protobuf / code_size | SerializeToString | 1,690.25 | 16.43x |
-| one_string_ten_int64 | google_protobuf / speed | SerializeToArray_preallocated | 56.13 | 1.00x |
-| one_string_ten_int64 | google_protobuf / lite_runtime | SerializeToArray_preallocated | 59.59 | 1.06x |
-| one_string_ten_int64 | google_protobuf / speed | SerializeToString | 64.47 | 1.15x |
-| one_string_ten_int64 | google_protobuf / lite_runtime | SerializeToString | 66.45 | 1.18x |
-| one_string_ten_int64 | protobuf_c / c_generated | pack_preallocated | 80.94 | 1.44x |
-| one_string_ten_int64 | google_protobuf / code_size | SerializeToString | 1,375.39 | 24.50x |
-| one_string_ten_int64 | google_protobuf / code_size | SerializeToArray_preallocated | 1,378.07 | 24.55x |
-| ten_strings_fifty_decimal_strings | protobuf_c / c_generated | pack_preallocated | 623.04 | 1.00x |
-| ten_strings_fifty_decimal_strings | google_protobuf / speed | SerializeToArray_preallocated | 904.73 | 1.45x |
-| ten_strings_fifty_decimal_strings | google_protobuf / lite_runtime | SerializeToArray_preallocated | 906.21 | 1.45x |
-| ten_strings_fifty_decimal_strings | google_protobuf / lite_runtime | SerializeToString | 923.97 | 1.48x |
-| ten_strings_fifty_decimal_strings | google_protobuf / speed | SerializeToString | 924.16 | 1.48x |
-| ten_strings_fifty_decimal_strings | google_protobuf / code_size | SerializeToString | 8,639.62 | 13.87x |
-| ten_strings_fifty_decimal_strings | google_protobuf / code_size | SerializeToArray_preallocated | 8,658.39 | 13.90x |
+| one_string_ten_decimal_strings | protobuf_c / c_generated | pack_preallocated | 116.36 | 1.00x |
+| one_string_ten_decimal_strings | google_protobuf / speed | SerializeToArray_preallocated | 139.91 | 1.20x |
+| one_string_ten_decimal_strings | google_protobuf / lite_runtime | SerializeToArray_preallocated | 140.67 | 1.21x |
+| one_string_ten_decimal_strings | google_protobuf / lite_runtime | SerializeToString | 143.32 | 1.23x |
+| one_string_ten_decimal_strings | google_protobuf / speed | SerializeToString | 144.26 | 1.24x |
+| one_string_ten_decimal_strings | google_protobuf / code_size | SerializeToString | 1,423.92 | 12.24x |
+| one_string_ten_decimal_strings | google_protobuf / code_size | SerializeToArray_preallocated | 1,426.32 | 12.26x |
+| one_string_ten_int64 | google_protobuf / speed | SerializeToArray_preallocated | 47.21 | 1.00x |
+| one_string_ten_int64 | google_protobuf / lite_runtime | SerializeToArray_preallocated | 50.01 | 1.06x |
+| one_string_ten_int64 | google_protobuf / speed | SerializeToString | 53.73 | 1.14x |
+| one_string_ten_int64 | google_protobuf / lite_runtime | SerializeToString | 54.85 | 1.16x |
+| one_string_ten_int64 | protobuf_c / c_generated | pack_preallocated | 82.44 | 1.75x |
+| one_string_ten_int64 | google_protobuf / code_size | SerializeToArray_preallocated | 1,157.83 | 24.53x |
+| one_string_ten_int64 | google_protobuf / code_size | SerializeToString | 1,158.06 | 24.53x |
+| ten_strings_fifty_decimal_strings | protobuf_c / c_generated | pack_preallocated | 702.36 | 1.00x |
+| ten_strings_fifty_decimal_strings | google_protobuf / speed | SerializeToArray_preallocated | 763.89 | 1.09x |
+| ten_strings_fifty_decimal_strings | google_protobuf / lite_runtime | SerializeToArray_preallocated | 765.10 | 1.09x |
+| ten_strings_fifty_decimal_strings | google_protobuf / lite_runtime | SerializeToString | 781.52 | 1.11x |
+| ten_strings_fifty_decimal_strings | google_protobuf / speed | SerializeToString | 783.68 | 1.12x |
+| ten_strings_fifty_decimal_strings | google_protobuf / code_size | SerializeToArray_preallocated | 7,304.08 | 10.40x |
+| ten_strings_fifty_decimal_strings | google_protobuf / code_size | SerializeToString | 7,310.58 | 10.41x |
 
 ## JSON-only comparison
 
 | Payload | Library | Median ns/encode | Relative to fastest JSON |
 |---|---|---:|---:|
-| one_string_ten_decimal_strings | boost_json | 272.21 | 1.00x |
-| one_string_ten_decimal_strings | yyjson | 276.36 | 1.02x |
-| one_string_ten_decimal_strings | rapidjson | 889.61 | 3.27x |
-| one_string_ten_decimal_strings | nlohmann_json | 1,051.49 | 3.86x |
-| one_string_ten_decimal_strings | jsoncpp | 2,520.56 | 9.26x |
-| one_string_ten_int64 | yyjson | 124.69 | 1.00x |
-| one_string_ten_int64 | boost_json | 343.81 | 2.76x |
-| one_string_ten_int64 | rapidjson | 443.96 | 3.56x |
-| one_string_ten_int64 | nlohmann_json | 563.18 | 4.52x |
-| one_string_ten_int64 | jsoncpp | 2,375.79 | 19.05x |
-| ten_strings_fifty_decimal_strings | yyjson | 1,203.38 | 1.00x |
-| ten_strings_fifty_decimal_strings | boost_json | 1,406.87 | 1.17x |
-| ten_strings_fifty_decimal_strings | rapidjson | 4,748.27 | 3.95x |
-| ten_strings_fifty_decimal_strings | nlohmann_json | 5,504.40 | 4.57x |
-| ten_strings_fifty_decimal_strings | jsoncpp | 12,631.27 | 10.50x |
+| one_string_ten_decimal_strings | boost_json | 222.51 | 1.00x |
+| one_string_ten_decimal_strings | yyjson | 226.96 | 1.02x |
+| one_string_ten_decimal_strings | rapidjson | 748.97 | 3.37x |
+| one_string_ten_decimal_strings | nlohmann_json | 888.05 | 3.99x |
+| one_string_ten_decimal_strings | jsoncpp | 1,791.66 | 8.05x |
+| one_string_ten_int64 | yyjson | 104.31 | 1.00x |
+| one_string_ten_int64 | boost_json | 312.70 | 3.00x |
+| one_string_ten_int64 | rapidjson | 370.57 | 3.55x |
+| one_string_ten_int64 | nlohmann_json | 507.06 | 4.86x |
+| one_string_ten_int64 | jsoncpp | 1,618.77 | 15.52x |
+| ten_strings_fifty_decimal_strings | yyjson | 1,011.58 | 1.00x |
+| ten_strings_fifty_decimal_strings | boost_json | 1,112.29 | 1.10x |
+| ten_strings_fifty_decimal_strings | rapidjson | 4,022.24 | 3.98x |
+| ten_strings_fifty_decimal_strings | nlohmann_json | 4,649.88 | 4.60x |
+| ten_strings_fifty_decimal_strings | jsoncpp | 9,682.19 | 9.57x |
 
 ## Raw data
 
 - `raw.csv` contains every individual repetition and is the source for the aggregates above.
 - Re-run on a quiet, pinned CPU if comparing small differences; CPU frequency, thermal state, compiler, allocator, and container host affect absolute numbers.
+
+
+## COMPILER_REPORT.md
+
+# Compiler and C++ standard comparison
+
+> Encoding only. No decoding, parsing, Schema Registry, or Kafka network work is included.
+
+## Contract
+
+- Every successful variant uses 1,000,000 encodes per repetition and 10 measured repetitions.
+- All variants use the same Docker image, Buf-generated sources, `-O3 -march=native -DNDEBUG`, and pre-populated messages.
+- C++23 is the established baseline; C++26 is included where the compiler accepts the standard mode.
+
+## Variants
+
+| Variant | Compiler | Standard | Architecture | Repetitions |
+|---|---|---:|---|---:|
+| clang-cxx23 | Clang 22.1.2 C++23 (Ubuntu clang version 22.1.2 (1ubuntu1)) | C++23 | x86_64 | 10 |
+| clang-cxx26 | Clang 22.1.2 C++26 (Ubuntu clang version 22.1.2 (1ubuntu1)) | C++26 | x86_64 | 10 |
+| gcc-cxx23 | GCC 15 C++23 (g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0) | C++23 | x86_64 | 10 |
+| gcc-cxx26 | GCC 15 C++26 (g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0) | C++26 | x86_64 | 10 |
+
+## Fastest row per payload and compiler
+
+| Variant | Payload | Fastest implementation | Median ns/encode | Mean M/s |
+|---|---|---|---:|---:|
+| clang-cxx23 | one_string_ten_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 121.06 | 8.25 |
+| clang-cxx23 | one_string_ten_int64 | protobuf / google_protobuf / lite_runtime / SerializeToArray_preallocated | 50.67 | 19.72 |
+| clang-cxx23 | ten_strings_fifty_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 703.77 | 1.42 |
+| clang-cxx26 | one_string_ten_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 121.58 | 8.26 |
+| clang-cxx26 | one_string_ten_int64 | protobuf / google_protobuf / lite_runtime / SerializeToArray_preallocated | 49.12 | 20.24 |
+| clang-cxx26 | ten_strings_fifty_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 701.15 | 1.43 |
+| gcc-cxx23 | one_string_ten_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 116.95 | 8.55 |
+| gcc-cxx23 | one_string_ten_int64 | protobuf / google_protobuf / speed / SerializeToArray_preallocated | 47.51 | 21.01 |
+| gcc-cxx23 | ten_strings_fifty_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 716.54 | 1.39 |
+| gcc-cxx26 | one_string_ten_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 115.85 | 8.64 |
+| gcc-cxx26 | one_string_ten_int64 | protobuf / google_protobuf / speed / SerializeToArray_preallocated | 48.56 | 20.52 |
+| gcc-cxx26 | ten_strings_fifty_decimal_strings | protobuf / protobuf_c / c_generated / pack_preallocated | 709.69 | 1.41 |
+
+## Full aggregate results
+
+| Variant | Kind | Library | Codegen | API | Payload | Reps | Median ns/encode | Mean ns/encode |
+|---|---|---|---|---|---|---:|---:|---:|
+| clang-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 121.06 | 121.18 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 140.21 | 140.52 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 141.97 | 142.10 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 145.22 | 144.99 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 145.56 | 145.89 |
+| clang-cxx23 | json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 224.23 | 223.89 |
+| clang-cxx23 | json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 241.92 | 241.99 |
+| clang-cxx23 | json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 1,006.37 | 1,006.11 |
+| clang-cxx23 | json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 1,082.68 | 1,086.12 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 1,414.32 | 1,414.39 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 1,420.65 | 1,425.27 |
+| clang-cxx23 | json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 1,813.95 | 1,813.65 |
+| clang-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 121.58 | 121.12 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 140.52 | 141.06 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 141.25 | 141.67 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 146.62 | 148.63 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 146.99 | 149.22 |
+| clang-cxx26 | json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 220.42 | 221.21 |
+| clang-cxx26 | json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 241.82 | 241.77 |
+| clang-cxx26 | json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 1,002.92 | 1,002.58 |
+| clang-cxx26 | json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 1,070.97 | 1,073.36 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 1,414.08 | 1,414.06 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 1,417.55 | 1,417.73 |
+| clang-cxx26 | json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 1,786.48 | 1,788.61 |
+| gcc-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 116.95 | 116.90 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 136.76 | 136.81 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 139.42 | 139.34 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 142.20 | 142.31 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 144.22 | 146.47 |
+| gcc-cxx23 | json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 220.49 | 220.60 |
+| gcc-cxx23 | json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 239.55 | 239.68 |
+| gcc-cxx23 | json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 754.65 | 756.63 |
+| gcc-cxx23 | json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 885.72 | 886.26 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 1,421.00 | 1,421.21 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 1,440.09 | 1,450.75 |
+| gcc-cxx23 | json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 1,803.09 | 1,807.38 |
+| gcc-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_decimal_strings | 10 | 115.85 | 115.70 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 139.21 | 140.99 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 140.47 | 139.76 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_decimal_strings | 10 | 143.39 | 145.92 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_decimal_strings | 10 | 145.36 | 144.86 |
+| gcc-cxx26 | json | boost_json | n/a | serialize | one_string_ten_decimal_strings | 10 | 220.62 | 220.82 |
+| gcc-cxx26 | json | yyjson | n/a | mut_write | one_string_ten_decimal_strings | 10 | 243.99 | 244.02 |
+| gcc-cxx26 | json | rapidjson | n/a | writer | one_string_ten_decimal_strings | 10 | 746.59 | 746.01 |
+| gcc-cxx26 | json | nlohmann_json | n/a | dump | one_string_ten_decimal_strings | 10 | 889.64 | 892.47 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_decimal_strings | 10 | 1,429.11 | 1,428.36 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_decimal_strings | 10 | 1,447.33 | 1,450.07 |
+| gcc-cxx26 | json | jsoncpp | n/a | writeString | one_string_ten_decimal_strings | 10 | 1,814.76 | 1,818.73 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 50.67 | 50.70 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 52.64 | 52.90 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 53.74 | 53.04 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 55.46 | 55.31 |
+| clang-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 83.91 | 84.00 |
+| clang-cxx23 | json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 143.32 | 145.87 |
+| clang-cxx23 | json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 312.50 | 314.50 |
+| clang-cxx23 | json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 458.79 | 459.09 |
+| clang-cxx23 | json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 586.75 | 586.83 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 1,156.63 | 1,163.76 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 1,158.54 | 1,163.82 |
+| clang-cxx23 | json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 1,633.86 | 1,638.60 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49.12 | 49.40 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 52.62 | 52.65 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 53.67 | 54.95 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 56.23 | 56.38 |
+| clang-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 85.78 | 86.10 |
+| clang-cxx26 | json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 142.82 | 143.89 |
+| clang-cxx26 | json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 311.86 | 314.63 |
+| clang-cxx26 | json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 467.58 | 470.92 |
+| clang-cxx26 | json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 584.98 | 588.04 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 1,158.10 | 1,158.63 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 1,159.89 | 1,160.64 |
+| clang-cxx26 | json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 1,619.71 | 1,626.54 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 47.51 | 47.60 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 50.62 | 51.27 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 52.93 | 53.58 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 55.64 | 55.70 |
+| gcc-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 82.58 | 83.07 |
+| gcc-cxx23 | json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 104.43 | 105.27 |
+| gcc-cxx23 | json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 311.79 | 315.18 |
+| gcc-cxx23 | json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 371.71 | 375.17 |
+| gcc-cxx23 | json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 506.34 | 507.36 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 1,168.57 | 1,168.44 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 1,172.99 | 1,172.84 |
+| gcc-cxx23 | json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 1,626.28 | 1,635.95 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 48.56 | 48.74 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 49.22 | 49.52 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToString | one_string_ten_int64 | 10 | 53.79 | 53.98 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | one_string_ten_int64 | 10 | 54.88 | 54.98 |
+| gcc-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | one_string_ten_int64 | 10 | 82.67 | 82.73 |
+| gcc-cxx26 | json | yyjson | n/a | mut_write | one_string_ten_int64 | 10 | 104.28 | 104.52 |
+| gcc-cxx26 | json | boost_json | n/a | serialize | one_string_ten_int64 | 10 | 312.47 | 312.62 |
+| gcc-cxx26 | json | rapidjson | n/a | writer | one_string_ten_int64 | 10 | 369.91 | 370.95 |
+| gcc-cxx26 | json | nlohmann_json | n/a | dump | one_string_ten_int64 | 10 | 507.55 | 507.68 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | one_string_ten_int64 | 10 | 1,160.48 | 1,162.81 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | one_string_ten_int64 | 10 | 1,162.22 | 1,162.21 |
+| gcc-cxx26 | json | jsoncpp | n/a | writeString | one_string_ten_int64 | 10 | 1,604.38 | 1,605.17 |
+| clang-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 703.77 | 703.69 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 768.39 | 770.84 |
+| clang-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 769.70 | 770.43 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 770.44 | 772.42 |
+| clang-cxx23 | protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 776.67 | 779.23 |
+| clang-cxx23 | json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 1,005.54 | 1,010.61 |
+| clang-cxx23 | json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1,125.09 | 1,125.18 |
+| clang-cxx23 | json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 5,303.99 | 5,298.69 |
+| clang-cxx23 | json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 5,674.76 | 5,671.66 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 7,267.82 | 7,259.13 |
+| clang-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 7,311.51 | 7,292.73 |
+| clang-cxx23 | json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 9,651.96 | 9,657.59 |
+| clang-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 701.15 | 701.38 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 764.71 | 766.55 |
+| clang-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 769.76 | 772.40 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 771.38 | 772.20 |
+| clang-cxx26 | protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 783.03 | 784.74 |
+| clang-cxx26 | json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 1,002.96 | 1,008.25 |
+| clang-cxx26 | json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1,127.39 | 1,127.58 |
+| clang-cxx26 | json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 5,282.87 | 5,286.23 |
+| clang-cxx26 | json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 5,700.42 | 5,691.21 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 7,239.52 | 7,241.36 |
+| clang-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 7,285.46 | 7,288.15 |
+| clang-cxx26 | json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 9,519.08 | 9,530.49 |
+| gcc-cxx23 | protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 716.54 | 718.28 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 769.47 | 775.05 |
+| gcc-cxx23 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 771.61 | 772.76 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 772.98 | 773.86 |
+| gcc-cxx23 | protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 784.69 | 787.38 |
+| gcc-cxx23 | json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 1,017.34 | 1,017.84 |
+| gcc-cxx23 | json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1,108.55 | 1,109.20 |
+| gcc-cxx23 | json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 4,056.07 | 4,055.79 |
+| gcc-cxx23 | json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 4,690.28 | 4,690.95 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 7,298.03 | 7,301.57 |
+| gcc-cxx23 | protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 7,326.49 | 7,316.83 |
+| gcc-cxx23 | json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 9,684.86 | 9,689.26 |
+| gcc-cxx26 | protobuf | protobuf_c | c_generated | pack_preallocated | ten_strings_fifty_decimal_strings | 10 | 709.69 | 709.82 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 765.11 | 763.82 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 773.87 | 772.11 |
+| gcc-cxx26 | protobuf | google_protobuf | speed | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 774.27 | 776.63 |
+| gcc-cxx26 | protobuf | google_protobuf | lite_runtime | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 788.22 | 788.52 |
+| gcc-cxx26 | json | yyjson | n/a | mut_write | ten_strings_fifty_decimal_strings | 10 | 1,010.09 | 1,010.05 |
+| gcc-cxx26 | json | boost_json | n/a | serialize | ten_strings_fifty_decimal_strings | 10 | 1,111.37 | 1,113.38 |
+| gcc-cxx26 | json | rapidjson | n/a | writer | ten_strings_fifty_decimal_strings | 10 | 4,066.44 | 4,064.12 |
+| gcc-cxx26 | json | nlohmann_json | n/a | dump | ten_strings_fifty_decimal_strings | 10 | 4,669.48 | 4,664.36 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToArray_preallocated | ten_strings_fifty_decimal_strings | 10 | 7,251.92 | 7,269.99 |
+| gcc-cxx26 | protobuf | google_protobuf | code_size | SerializeToString | ten_strings_fifty_decimal_strings | 10 | 7,287.70 | 7,293.74 |
+| gcc-cxx26 | json | jsoncpp | n/a | writeString | ten_strings_fifty_decimal_strings | 10 | 9,649.04 | 9,666.17 |
+
+## Interpretation
+
+- Compare compiler rows only within the same host architecture and Docker host; compiler and standard effects are smaller than CPU, frequency, allocator, and scheduler variance in many rows.
+- A successful C++26 row proves the selected compiler accepted that language mode; it does not imply all generated dependencies have adopted every C++26 feature.
+- Raw per-repetition data remains in `results/compiler/<variant>/raw.csv`.
 
 
 ## REPRESENTATION_REPORT.md
@@ -160,10 +355,10 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 
 | Representation | Reps | Bytes | Median ns/encode | Mean ns/encode | p95 ns | p99 ns | p99.9 ns | p99.99 ns | Mean M/s |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| fixed64_scale_8 | 10 | 99 | 27.33 | 27.13 | 28.01 | 28.01 | 28.01 | 28.01 | 36.86 |
-| bytes_128bit_coefficient_scale_8 | 10 | 189 | 57.83 | 57.76 | 58.07 | 58.07 | 58.07 | 58.07 | 17.31 |
-| scaled_sint64_scale_8 | 10 | 79 | 68.35 | 68.46 | 69.03 | 69.03 | 69.03 | 69.03 | 14.61 |
-| decimal_string | 10 | 169 | 179.61 | 179.49 | 180.66 | 180.66 | 180.66 | 180.66 | 5.57 |
+| fixed64_scale_8 | 10 | 99 | 22.69 | 22.79 | 23.59 | 23.59 | 23.59 | 23.59 | 43.88 |
+| bytes_128bit_coefficient_scale_8 | 10 | 189 | 49.07 | 49.15 | 49.59 | 49.59 | 49.59 | 49.59 | 20.35 |
+| scaled_sint64_scale_8 | 10 | 79 | 58.26 | 58.17 | 59.00 | 59.00 | 59.00 | 59.00 | 17.19 |
+| decimal_string | 10 | 169 | 150.75 | 149.83 | 152.14 | 152.14 | 152.14 | 152.14 | 6.67 |
 
 ## Trade-off
 
@@ -190,18 +385,18 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 
 | Payload | Path | Reps | Bytes | Median p50 ns | p90 ns | p99 ns | p99.9 ns | p99.99 ns | Max ns | Mean allocations/rep | Mean allocated bytes/rep |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| one_string_ten_decimal_strings | serialize_array_arena_message | 10 | 213 | 176.00 | 181.00 | 186.50 | 243.00 | 6,281.00 | 25,160.50 | 0.00 | 0.00 |
-| one_string_ten_decimal_strings | serialize_array_fresh_buffer | 10 | 213 | 186.00 | 192.00 | 197.50 | 302.00 | 6,238.00 | 24,708.00 | 1,000,000.00 | 213,000,000.00 |
-| one_string_ten_decimal_strings | serialize_array_reuse | 10 | 213 | 177.00 | 180.50 | 186.50 | 247.50 | 6,259.50 | 34,590.50 | 0.00 | 0.00 |
-| one_string_ten_decimal_strings | serialize_string_reserved | 10 | 213 | 182.00 | 187.00 | 195.50 | 272.00 | 6,403.50 | 27,227.50 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_array_arena_message | 10 | 49 | 74.00 | 78.00 | 81.00 | 105.50 | 718.00 | 22,060.00 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_array_fresh_buffer | 10 | 49 | 85.00 | 89.00 | 92.00 | 183.00 | 1,612.00 | 14,737.00 | 1,000,000.00 | 49,000,000.00 |
-| one_string_ten_int64 | serialize_array_reuse | 10 | 49 | 75.50 | 80.00 | 82.00 | 104.50 | 693.00 | 20,657.50 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_string_reserved | 10 | 49 | 80.00 | 85.00 | 88.50 | 152.50 | 1,372.00 | 23,240.50 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_arena_message | 10 | 1193 | 924.00 | 950.00 | 974.00 | 3,041.00 | 8,381.50 | 73,066.00 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_fresh_buffer | 10 | 1193 | 983.50 | 1,009.00 | 1,055.50 | 6,515.00 | 8,185.50 | 66,064.50 | 1,000,000.00 | 1,193,000,000.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_reuse | 10 | 1193 | 921.00 | 953.00 | 982.50 | 4,867.50 | 9,081.50 | 65,092.50 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_string_reserved | 10 | 1193 | 937.50 | 963.00 | 994.50 | 3,324.50 | 8,631.00 | 61,394.50 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_array_arena_message | 10 | 213 | 149.00 | 152.00 | 154.00 | 217.50 | 4,612.50 | 23,091.50 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_array_fresh_buffer | 10 | 213 | 157.50 | 161.00 | 164.00 | 263.00 | 4,616.00 | 20,104.50 | 1,000,000.00 | 213,000,000.00 |
+| one_string_ten_decimal_strings | serialize_array_reuse | 10 | 213 | 149.00 | 152.00 | 154.00 | 211.50 | 4,557.50 | 23,130.50 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_string_reserved | 10 | 213 | 154.50 | 157.50 | 160.00 | 222.00 | 4,671.00 | 20,561.50 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_array_arena_message | 10 | 49 | 64.00 | 66.00 | 68.00 | 73.50 | 232.00 | 17,419.50 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_array_fresh_buffer | 10 | 49 | 72.00 | 75.00 | 78.00 | 140.00 | 336.00 | 13,710.50 | 1,000,000.00 | 49,000,000.00 |
+| one_string_ten_int64 | serialize_array_reuse | 10 | 49 | 64.00 | 67.00 | 68.50 | 91.00 | 233.00 | 18,707.50 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_string_reserved | 10 | 49 | 70.00 | 72.00 | 74.50 | 105.00 | 306.00 | 13,605.00 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_arena_message | 10 | 1193 | 775.50 | 794.00 | 853.00 | 1,973.00 | 6,427.50 | 58,865.50 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_fresh_buffer | 10 | 1193 | 820.50 | 848.00 | 1,027.50 | 5,021.50 | 14,279.00 | 52,315.00 | 1,000,000.00 | 1,193,000,000.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_reuse | 10 | 1193 | 774.50 | 796.50 | 811.50 | 1,244.00 | 6,599.50 | 56,635.00 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_string_reserved | 10 | 1193 | 789.00 | 815.00 | 976.00 | 3,605.00 | 11,330.50 | 52,323.00 | 0.00 | 0.00 |
 
 ## Allocation interpretation
 
@@ -229,13 +424,13 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 
 | Distribution | Reps | Mean bytes | Median ns/encode | Mean ns/encode | Mean M/s |
 |---|---:|---:|---:|---:|---:|
-| int64_small_varints | 10 | 29.00 | 55.57 | 55.33 | 18.08 |
-| string_short_ascii | 10 | 49.00 | 62.42 | 62.28 | 16.06 |
-| string_long_ascii_256 | 10 | 299.00 | 74.17 | 74.07 | 13.50 |
-| int64_mixed_distribution | 10 | 76.50 | 80.32 | 80.40 | 12.44 |
-| string_multibyte_utf8 | 10 | 67.92 | 89.53 | 90.02 | 11.11 |
-| int64_negative_standard_varint | 10 | 119.00 | 101.16 | 101.40 | 9.86 |
-| int64_large_varints | 10 | 109.00 | 101.78 | 101.94 | 9.81 |
+| int64_small_varints | 10 | 29.00 | 46.28 | 46.37 | 21.57 |
+| string_short_ascii | 10 | 49.00 | 52.91 | 52.81 | 18.94 |
+| string_long_ascii_256 | 10 | 299.00 | 63.15 | 63.31 | 15.80 |
+| int64_mixed_distribution | 10 | 76.50 | 67.28 | 67.47 | 14.82 |
+| string_multibyte_utf8 | 10 | 67.92 | 75.21 | 77.74 | 12.92 |
+| int64_negative_standard_varint | 10 | 119.00 | 85.44 | 85.48 | 11.70 |
+| int64_large_varints | 10 | 109.00 | 85.60 | 86.68 | 11.54 |
 
 ## Interpretation
 
@@ -262,18 +457,18 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 
 | Mode | Threads | Reps | Bytes | Median ns/encode | Mean ns/encode | Mean M/s |
 |---|---:|---:|---:|---:|---:|---:|
-| shared_buffer_mutex | 1 | 10 | 49 | 69.84 | 69.71 | 14.35 |
-| shared_buffer_mutex | 2 | 10 | 49 | 392.15 | 389.84 | 2.57 |
-| shared_buffer_mutex | 4 | 10 | 49 | 396.34 | 392.59 | 2.55 |
-| shared_buffer_mutex | 8 | 10 | 49 | 392.21 | 392.36 | 2.55 |
-| shared_readonly | 1 | 10 | 49 | 61.47 | 61.09 | 16.38 |
-| shared_readonly | 2 | 10 | 49 | 46.23 | 46.23 | 21.63 |
-| shared_readonly | 4 | 10 | 49 | 45.29 | 45.33 | 22.06 |
-| shared_readonly | 8 | 10 | 49 | 45.34 | 45.35 | 22.05 |
-| thread_local | 1 | 10 | 49 | 60.49 | 59.90 | 16.72 |
-| thread_local | 2 | 10 | 49 | 43.90 | 43.88 | 22.79 |
-| thread_local | 4 | 10 | 49 | 43.93 | 44.35 | 22.56 |
-| thread_local | 8 | 10 | 49 | 44.23 | 44.29 | 22.58 |
+| shared_buffer_mutex | 1 | 10 | 49 | 58.28 | 57.60 | 17.38 |
+| shared_buffer_mutex | 2 | 10 | 49 | 338.64 | 339.63 | 2.94 |
+| shared_buffer_mutex | 4 | 10 | 49 | 340.18 | 339.31 | 2.95 |
+| shared_buffer_mutex | 8 | 10 | 49 | 342.39 | 340.00 | 2.94 |
+| shared_readonly | 1 | 10 | 49 | 50.57 | 50.22 | 19.93 |
+| shared_readonly | 2 | 10 | 49 | 38.27 | 38.27 | 26.13 |
+| shared_readonly | 4 | 10 | 49 | 38.64 | 38.66 | 25.87 |
+| shared_readonly | 8 | 10 | 49 | 37.48 | 37.51 | 26.66 |
+| thread_local | 1 | 10 | 49 | 51.39 | 51.55 | 19.46 |
+| thread_local | 2 | 10 | 49 | 36.75 | 36.93 | 27.08 |
+| thread_local | 4 | 10 | 49 | 36.86 | 37.24 | 26.88 |
+| thread_local | 8 | 10 | 49 | 37.38 | 39.37 | 25.54 |
 
 ## Mode definitions
 
@@ -302,7 +497,7 @@ The fastest row is selected by median nanoseconds per encode across the recorded
 perf output missing
 ```
 
-If events are unavailable under OrbStack, the output is retained explicitly rather than being presented as a valid counter measurement. Repeat this phase on production Linux hardware with the required perf permissions for authoritative microarchitectural comparisons.
+If events are unavailable under the container host, the output is retained explicitly rather than being presented as a valid counter measurement. Repeat this phase on production Linux hardware with the required perf permissions for authoritative microarchitectural comparisons.
 
 
 ## KAFKA_PRODUCER_REPORT.md
@@ -313,7 +508,7 @@ If events are unavailable under OrbStack, the output is retained explicitly rath
 
 ## Run contract
 
-- Configurations: `72`
+- Configurations: `78`
 - Encodes/messages per repetition: `1000000`
 - Repetitions per configuration: `10`
 - `enqueue` covers serialization plus the librdkafka `produce()` handoff.
@@ -324,78 +519,78 @@ If events are unavailable under OrbStack, the output is retained explicitly rath
 
 | Mode | Acks | Compression | Linger ms | Batch messages | Reps | Bytes | Median enqueue ns/msg | Median end-to-end ns/msg | p95 end-to-end ns/msg | p99 end-to-end ns/msg | Errors |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| copy | 0 | lz4 | 0 | 1 | 10 | 49 | 41,629.88 | 46,258.35 | 46,887.61 | 46,887.61 | 0 |
-| copy | 0 | lz4 | 0 | 100 | 10 | 49 | 754.05 | 755.18 | 1,747.56 | 1,747.56 | 0 |
-| copy | 0 | lz4 | 5 | 1 | 10 | 49 | 41,304.02 | 45,885.84 | 46,761.23 | 46,761.23 | 0 |
-| copy | 0 | lz4 | 5 | 100 | 10 | 49 | 700.09 | 701.36 | 1,711.20 | 1,711.20 | 0 |
-| copy | 0 | none | 0 | 1 | 10 | 49 | 40,093.94 | 44,525.34 | 46,950.59 | 46,950.59 | 0 |
-| copy | 0 | none | 0 | 100 | 10 | 49 | 735.34 | 742.09 | 1,749.44 | 1,749.44 | 0 |
-| copy | 0 | none | 5 | 1 | 10 | 49 | 40,204.99 | 44,660.04 | 45,234.81 | 45,234.81 | 0 |
-| copy | 0 | none | 5 | 100 | 10 | 49 | 709.94 | 713.13 | 1,672.63 | 1,672.63 | 0 |
-| copy | 0 | zstd | 0 | 1 | 10 | 49 | 45,230.20 | 50,190.51 | 50,562.32 | 50,562.32 | 0 |
-| copy | 0 | zstd | 0 | 100 | 10 | 49 | 937.71 | 1,015.43 | 2,057.16 | 2,057.16 | 0 |
-| copy | 0 | zstd | 5 | 1 | 10 | 49 | 45,618.95 | 50,657.31 | 51,247.02 | 51,247.02 | 0 |
-| copy | 0 | zstd | 5 | 100 | 10 | 49 | 1,002.78 | 1,088.69 | 2,070.39 | 2,070.39 | 0 |
-| copy | 1 | lz4 | 0 | 1 | 10 | 49 | 51,638.60 | 57,380.82 | 59,207.05 | 59,207.05 | 0 |
-| copy | 1 | lz4 | 0 | 100 | 10 | 49 | 1,023.18 | 1,122.31 | 2,080.13 | 2,080.13 | 0 |
-| copy | 1 | lz4 | 5 | 1 | 10 | 49 | 51,344.52 | 57,139.50 | 58,057.81 | 58,057.81 | 0 |
-| copy | 1 | lz4 | 5 | 100 | 10 | 49 | 827.73 | 829.38 | 1,926.44 | 1,926.44 | 0 |
-| copy | 1 | none | 0 | 1 | 10 | 49 | 52,118.34 | 57,973.83 | 61,738.96 | 61,738.96 | 0 |
-| copy | 1 | none | 0 | 100 | 10 | 49 | 937.08 | 956.49 | 2,043.65 | 2,043.65 | 0 |
-| copy | 1 | none | 5 | 1 | 10 | 49 | 52,444.83 | 58,187.32 | 59,044.14 | 59,044.14 | 0 |
-| copy | 1 | none | 5 | 100 | 10 | 49 | 831.13 | 832.50 | 1,973.46 | 1,973.46 | 0 |
-| copy | 1 | zstd | 0 | 1 | 10 | 49 | 52,259.43 | 58,031.43 | 59,862.61 | 59,862.61 | 0 |
-| copy | 1 | zstd | 0 | 100 | 10 | 49 | 1,034.47 | 1,107.25 | 2,220.23 | 2,220.23 | 0 |
-| copy | 1 | zstd | 5 | 1 | 10 | 49 | 52,800.79 | 58,679.68 | 60,120.47 | 60,120.47 | 0 |
-| copy | 1 | zstd | 5 | 100 | 10 | 49 | 1,173.98 | 1,264.62 | 2,261.29 | 2,261.29 | 0 |
-| copy | all | lz4 | 0 | 1 | 10 | 49 | 91,648.56 | 101,819.15 | 102,756.60 | 102,756.60 | 0 |
-| copy | all | lz4 | 0 | 100 | 10 | 49 | 1,092.96 | 1,231.76 | 2,980.60 | 2,980.60 | 0 |
-| copy | all | lz4 | 5 | 1 | 10 | 49 | 91,684.72 | 101,871.43 | 102,349.32 | 102,349.32 | 0 |
-| copy | all | lz4 | 5 | 100 | 10 | 49 | 949.19 | 1,057.68 | 2,090.54 | 2,090.54 | 0 |
-| copy | all | none | 0 | 1 | 10 | 49 | 93,448.53 | 103,868.92 | 104,760.47 | 104,760.47 | 0 |
-| copy | all | none | 0 | 100 | 10 | 49 | 1,046.61 | 1,161.62 | 2,513.18 | 2,513.18 | 0 |
-| copy | all | none | 5 | 1 | 10 | 49 | 90,757.42 | 100,812.28 | 102,084.48 | 102,084.48 | 0 |
-| copy | all | none | 5 | 100 | 10 | 49 | 1,019.66 | 1,131.92 | 2,186.83 | 2,186.83 | 0 |
-| copy | all | zstd | 0 | 1 | 10 | 49 | 91,557.01 | 101,691.52 | 104,493.01 | 104,493.01 | 0 |
-| copy | all | zstd | 0 | 100 | 10 | 49 | 1,168.72 | 1,290.00 | 2,392.55 | 2,392.55 | 0 |
-| copy | all | zstd | 5 | 1 | 10 | 49 | 91,572.22 | 101,715.50 | 102,753.03 | 102,753.03 | 0 |
-| copy | all | zstd | 5 | 100 | 10 | 49 | 1,318.15 | 1,439.49 | 2,398.78 | 2,398.78 | 0 |
-| owned | 0 | lz4 | 0 | 1 | 10 | 49 | 42,532.98 | 47,271.20 | 47,655.31 | 47,655.31 | 0 |
-| owned | 0 | lz4 | 0 | 100 | 10 | 49 | 842.94 | 843.54 | 1,772.53 | 1,772.53 | 0 |
-| owned | 0 | lz4 | 5 | 1 | 10 | 49 | 42,689.16 | 47,384.44 | 47,901.73 | 47,901.73 | 0 |
-| owned | 0 | lz4 | 5 | 100 | 10 | 49 | 725.19 | 725.93 | 1,707.30 | 1,707.30 | 0 |
-| owned | 0 | none | 0 | 1 | 10 | 49 | 41,365.82 | 45,952.09 | 48,356.37 | 48,356.37 | 0 |
-| owned | 0 | none | 0 | 100 | 10 | 49 | 629.74 | 674.71 | 1,919.16 | 1,919.16 | 0 |
-| owned | 0 | none | 5 | 1 | 10 | 49 | 41,148.26 | 45,780.68 | 46,441.96 | 46,441.96 | 0 |
-| owned | 0 | none | 5 | 100 | 10 | 49 | 743.27 | 743.92 | 1,662.93 | 1,662.93 | 0 |
-| owned | 0 | zstd | 0 | 1 | 10 | 49 | 46,594.87 | 51,750.28 | 52,139.38 | 52,139.38 | 0 |
-| owned | 0 | zstd | 0 | 100 | 10 | 49 | 976.41 | 1,061.38 | 2,110.68 | 2,110.68 | 0 |
-| owned | 0 | zstd | 5 | 1 | 10 | 49 | 46,581.52 | 51,722.52 | 52,233.66 | 52,233.66 | 0 |
-| owned | 0 | zstd | 5 | 100 | 10 | 49 | 990.00 | 1,074.82 | 2,059.08 | 2,059.08 | 0 |
-| owned | 1 | lz4 | 0 | 1 | 10 | 49 | 65,741.31 | 73,029.17 | 74,086.36 | 74,086.36 | 0 |
-| owned | 1 | lz4 | 0 | 100 | 10 | 49 | 766.57 | 837.95 | 2,044.67 | 2,044.67 | 0 |
-| owned | 1 | lz4 | 5 | 1 | 10 | 49 | 66,202.05 | 73,543.47 | 74,043.83 | 74,043.83 | 0 |
-| owned | 1 | lz4 | 5 | 100 | 10 | 49 | 811.78 | 859.68 | 1,891.06 | 1,891.06 | 0 |
-| owned | 1 | none | 0 | 1 | 10 | 49 | 65,808.71 | 73,097.03 | 76,804.50 | 76,804.50 | 0 |
-| owned | 1 | none | 0 | 100 | 10 | 49 | 849.80 | 933.10 | 2,431.78 | 2,431.78 | 0 |
-| owned | 1 | none | 5 | 1 | 10 | 49 | 65,945.18 | 73,226.65 | 74,144.09 | 74,144.09 | 0 |
-| owned | 1 | none | 5 | 100 | 10 | 49 | 784.79 | 860.70 | 1,874.02 | 1,874.02 | 0 |
-| owned | 1 | zstd | 0 | 1 | 10 | 49 | 70,727.42 | 78,550.09 | 79,934.25 | 79,934.25 | 0 |
-| owned | 1 | zstd | 0 | 100 | 10 | 49 | 1,104.00 | 1,205.05 | 2,300.14 | 2,300.14 | 0 |
-| owned | 1 | zstd | 5 | 1 | 10 | 49 | 70,284.77 | 78,048.89 | 82,140.47 | 82,140.47 | 0 |
-| owned | 1 | zstd | 5 | 100 | 10 | 49 | 1,271.39 | 1,375.58 | 2,388.67 | 2,388.67 | 0 |
-| owned | all | lz4 | 0 | 1 | 10 | 49 | 88,617.48 | 98,448.78 | 100,167.29 | 100,167.29 | 0 |
-| owned | all | lz4 | 0 | 100 | 10 | 49 | 1,072.25 | 1,201.58 | 2,730.08 | 2,730.08 | 0 |
-| owned | all | lz4 | 5 | 1 | 10 | 49 | 88,658.58 | 98,529.81 | 99,088.77 | 99,088.77 | 0 |
-| owned | all | lz4 | 5 | 100 | 10 | 49 | 936.90 | 1,045.58 | 2,075.54 | 2,075.54 | 0 |
-| owned | all | none | 0 | 1 | 10 | 49 | 90,565.72 | 100,599.80 | 103,554.14 | 103,554.14 | 0 |
-| owned | all | none | 0 | 100 | 10 | 49 | 1,006.37 | 1,119.22 | 2,536.77 | 2,536.77 | 0 |
-| owned | all | none | 5 | 1 | 10 | 49 | 88,333.05 | 98,157.04 | 99,070.87 | 99,070.87 | 0 |
-| owned | all | none | 5 | 100 | 10 | 49 | 992.66 | 1,106.45 | 2,147.19 | 2,147.19 | 0 |
-| owned | all | zstd | 0 | 1 | 10 | 49 | 91,599.34 | 101,760.01 | 102,576.21 | 102,576.21 | 0 |
-| owned | all | zstd | 0 | 100 | 10 | 49 | 1,212.98 | 1,332.53 | 2,403.89 | 2,403.89 | 0 |
-| owned | all | zstd | 5 | 1 | 10 | 49 | 90,129.53 | 100,107.88 | 102,515.85 | 102,515.85 | 0 |
-| owned | all | zstd | 5 | 100 | 10 | 49 | 1,243.67 | 1,364.25 | 2,514.37 | 2,514.37 | 0 |
+| copy | 0 | lz4 | 0 | 1 | 70 | 49 | 41,658.49 | 46,290.02 | 48,107.20 | 48,186.16 | 0 |
+| copy | 0 | lz4 | 0 | 100 | 70 | 49 | 728.35 | 729.63 | 1,747.56 | 1,747.56 | 0 |
+| copy | 0 | lz4 | 5 | 1 | 70 | 49 | 41,304.78 | 45,896.48 | 48,452.12 | 48,583.95 | 0 |
+| copy | 0 | lz4 | 5 | 100 | 70 | 49 | 696.93 | 698.46 | 1,711.20 | 1,711.20 | 0 |
+| copy | 0 | none | 0 | 1 | 70 | 49 | 40,110.14 | 44,560.28 | 46,950.59 | 47,002.76 | 0 |
+| copy | 0 | none | 0 | 100 | 70 | 49 | 733.77 | 736.24 | 1,749.44 | 1,749.44 | 0 |
+| copy | 0 | none | 5 | 1 | 70 | 49 | 40,217.97 | 44,667.77 | 46,433.22 | 46,796.91 | 0 |
+| copy | 0 | none | 5 | 100 | 70 | 49 | 700.18 | 705.22 | 1,672.63 | 1,672.63 | 0 |
+| copy | 0 | zstd | 0 | 1 | 70 | 49 | 45,233.38 | 50,198.34 | 52,400.52 | 52,534.91 | 0 |
+| copy | 0 | zstd | 0 | 100 | 70 | 49 | 944.05 | 1,019.31 | 2,057.16 | 2,057.16 | 0 |
+| copy | 0 | zstd | 5 | 1 | 70 | 49 | 45,643.95 | 50,690.92 | 52,322.60 | 52,728.29 | 0 |
+| copy | 0 | zstd | 5 | 100 | 70 | 49 | 1,008.99 | 1,093.76 | 2,070.39 | 2,070.39 | 0 |
+| copy | 1 | lz4 | 0 | 1 | 70 | 49 | 51,733.10 | 57,480.88 | 104,969.76 | 105,258.88 | 0 |
+| copy | 1 | lz4 | 0 | 100 | 70 | 49 | 1,022.08 | 1,121.46 | 2,080.13 | 2,080.13 | 0 |
+| copy | 1 | lz4 | 5 | 1 | 70 | 49 | 51,365.04 | 57,174.23 | 104,774.83 | 105,504.24 | 0 |
+| copy | 1 | lz4 | 5 | 100 | 70 | 49 | 830.77 | 832.11 | 1,926.44 | 1,926.44 | 0 |
+| copy | 1 | none | 0 | 1 | 70 | 49 | 52,146.32 | 58,001.31 | 101,706.15 | 106,112.33 | 0 |
+| copy | 1 | none | 0 | 100 | 70 | 49 | 938.44 | 959.16 | 2,043.65 | 2,043.65 | 0 |
+| copy | 1 | none | 5 | 1 | 70 | 49 | 52,549.23 | 58,240.31 | 102,820.10 | 103,139.72 | 0 |
+| copy | 1 | none | 5 | 100 | 70 | 49 | 831.27 | 833.04 | 1,973.46 | 1,973.46 | 0 |
+| copy | 1 | zstd | 0 | 1 | 70 | 49 | 52,290.00 | 58,038.34 | 105,583.12 | 105,692.25 | 0 |
+| copy | 1 | zstd | 0 | 100 | 70 | 49 | 1,035.85 | 1,112.08 | 2,220.23 | 2,220.23 | 0 |
+| copy | 1 | zstd | 5 | 1 | 70 | 49 | 52,886.68 | 58,702.91 | 106,134.07 | 107,023.60 | 0 |
+| copy | 1 | zstd | 5 | 100 | 70 | 49 | 1,175.19 | 1,265.47 | 2,261.29 | 2,261.29 | 0 |
+| copy | all | lz4 | 0 | 1 | 70 | 49 | 91,647.54 | 101,810.96 | 102,756.60 | 102,756.60 | 0 |
+| copy | all | lz4 | 0 | 100 | 70 | 49 | 1,073.24 | 1,192.60 | 2,980.60 | 2,980.60 | 0 |
+| copy | all | lz4 | 5 | 1 | 70 | 49 | 91,682.76 | 101,824.83 | 102,349.32 | 102,349.32 | 0 |
+| copy | all | lz4 | 5 | 100 | 70 | 49 | 948.51 | 1,055.45 | 2,090.54 | 2,090.54 | 0 |
+| copy | all | none | 0 | 1 | 70 | 49 | 93,186.52 | 103,690.56 | 104,760.47 | 104,760.47 | 0 |
+| copy | all | none | 0 | 100 | 70 | 49 | 1,036.36 | 1,148.15 | 2,513.18 | 2,513.18 | 0 |
+| copy | all | none | 5 | 1 | 70 | 49 | 90,757.22 | 100,777.84 | 102,084.48 | 102,084.48 | 0 |
+| copy | all | none | 5 | 100 | 70 | 49 | 1,014.69 | 1,128.30 | 2,186.83 | 2,186.83 | 0 |
+| copy | all | zstd | 0 | 1 | 70 | 49 | 91,538.84 | 101,686.00 | 104,493.01 | 104,493.01 | 0 |
+| copy | all | zstd | 0 | 100 | 70 | 49 | 1,168.75 | 1,291.53 | 2,392.55 | 2,392.55 | 0 |
+| copy | all | zstd | 5 | 1 | 70 | 49 | 91,546.98 | 101,710.50 | 102,753.03 | 102,753.03 | 0 |
+| copy | all | zstd | 5 | 100 | 70 | 49 | 1,303.01 | 1,421.63 | 2,398.78 | 2,398.78 | 0 |
+| owned | 0 | lz4 | 0 | 1 | 70 | 49 | 42,495.32 | 47,221.99 | 47,655.31 | 47,655.31 | 0 |
+| owned | 0 | lz4 | 0 | 100 | 70 | 49 | 853.75 | 854.59 | 1,772.53 | 1,772.53 | 0 |
+| owned | 0 | lz4 | 5 | 1 | 70 | 49 | 42,679.75 | 47,384.08 | 47,901.73 | 47,901.73 | 0 |
+| owned | 0 | lz4 | 5 | 100 | 70 | 49 | 725.93 | 726.23 | 1,707.30 | 1,707.30 | 0 |
+| owned | 0 | none | 0 | 1 | 70 | 49 | 41,363.58 | 45,932.03 | 48,356.37 | 48,356.37 | 0 |
+| owned | 0 | none | 0 | 100 | 70 | 49 | 630.16 | 679.90 | 1,919.16 | 1,919.16 | 0 |
+| owned | 0 | none | 5 | 1 | 70 | 49 | 41,105.67 | 45,761.03 | 46,441.96 | 46,441.96 | 0 |
+| owned | 0 | none | 5 | 100 | 70 | 49 | 744.76 | 745.36 | 1,662.93 | 1,662.93 | 0 |
+| owned | 0 | zstd | 0 | 1 | 70 | 49 | 46,539.84 | 51,678.75 | 52,139.38 | 52,139.38 | 0 |
+| owned | 0 | zstd | 0 | 100 | 70 | 49 | 982.35 | 1,061.95 | 2,110.68 | 2,110.68 | 0 |
+| owned | 0 | zstd | 5 | 1 | 70 | 49 | 46,575.83 | 51,717.33 | 52,233.66 | 52,233.66 | 0 |
+| owned | 0 | zstd | 5 | 100 | 70 | 49 | 991.59 | 1,082.96 | 2,059.08 | 2,059.08 | 0 |
+| owned | 1 | lz4 | 0 | 1 | 70 | 49 | 65,805.17 | 73,080.74 | 101,217.85 | 101,587.15 | 0 |
+| owned | 1 | lz4 | 0 | 100 | 70 | 49 | 767.17 | 841.94 | 2,044.67 | 2,044.67 | 0 |
+| owned | 1 | lz4 | 5 | 1 | 70 | 49 | 66,211.93 | 73,552.50 | 99,784.79 | 100,040.57 | 0 |
+| owned | 1 | lz4 | 5 | 100 | 70 | 49 | 814.02 | 860.43 | 1,891.06 | 1,891.06 | 0 |
+| owned | 1 | none | 0 | 1 | 70 | 49 | 65,817.48 | 73,128.54 | 99,312.30 | 101,590.37 | 0 |
+| owned | 1 | none | 0 | 100 | 70 | 49 | 853.63 | 934.37 | 2,431.78 | 2,431.78 | 0 |
+| owned | 1 | none | 5 | 1 | 70 | 49 | 65,945.29 | 73,276.19 | 101,046.67 | 101,471.56 | 0 |
+| owned | 1 | none | 5 | 100 | 70 | 49 | 787.09 | 860.92 | 1,874.02 | 1,874.02 | 0 |
+| owned | 1 | zstd | 0 | 1 | 70 | 49 | 70,737.06 | 78,554.87 | 101,436.49 | 101,811.41 | 0 |
+| owned | 1 | zstd | 0 | 100 | 70 | 49 | 1,105.73 | 1,206.32 | 2,300.14 | 2,300.14 | 0 |
+| owned | 1 | zstd | 5 | 1 | 70 | 49 | 70,302.72 | 78,084.88 | 102,074.15 | 103,132.73 | 0 |
+| owned | 1 | zstd | 5 | 100 | 70 | 49 | 1,271.64 | 1,377.41 | 2,388.67 | 2,388.67 | 0 |
+| owned | all | lz4 | 0 | 1 | 70 | 49 | 88,654.22 | 98,451.93 | 105,025.24 | 105,826.53 | 0 |
+| owned | all | lz4 | 0 | 100 | 70 | 49 | 1,082.14 | 1,210.54 | 2,730.08 | 2,730.08 | 0 |
+| owned | all | lz4 | 5 | 1 | 70 | 49 | 88,676.33 | 98,533.74 | 104,982.90 | 110,636.89 | 0 |
+| owned | all | lz4 | 5 | 100 | 70 | 49 | 938.42 | 1,048.53 | 2,075.54 | 2,075.54 | 0 |
+| owned | all | none | 0 | 1 | 70 | 49 | 90,653.79 | 100,672.57 | 103,554.14 | 104,498.42 | 0 |
+| owned | all | none | 0 | 100 | 70 | 49 | 1,006.82 | 1,119.82 | 2,536.77 | 2,536.77 | 0 |
+| owned | all | none | 5 | 1 | 70 | 49 | 88,412.58 | 98,218.53 | 104,287.13 | 105,270.95 | 0 |
+| owned | all | none | 5 | 100 | 70 | 49 | 996.55 | 1,109.37 | 2,147.19 | 2,147.19 | 0 |
+| owned | all | zstd | 0 | 1 | 70 | 49 | 91,599.62 | 101,783.06 | 105,499.19 | 109,252.23 | 0 |
+| owned | all | zstd | 0 | 100 | 70 | 49 | 1,218.25 | 1,337.62 | 2,403.89 | 2,403.89 | 0 |
+| owned | all | zstd | 5 | 1 | 70 | 49 | 90,135.26 | 100,113.45 | 105,801.79 | 107,300.97 | 0 |
+| owned | all | zstd | 5 | 100 | 70 | 49 | 1,244.84 | 1,365.33 | 2,514.37 | 2,514.37 | 0 |
 
 ## Interpretation
 
@@ -437,23 +632,23 @@ The pure baseline is Google protobuf generated with Buf using `SPEED` and preall
 
 | Payload | Pure protobuf ns | In-place framed ns | Framed + copy ns | Cached serializer string ns | Framed bytes | In-place overhead | Copy overhead |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| one_string_ten_int64 | 56.13 | 57.17 | 59.18 | 65.14 | 55 | 1.85% | 5.44% |
-| one_string_ten_decimal_strings | 161.64 | 164.46 | 168.76 | 177.55 | 219 | 1.74% | 4.40% |
-| ten_strings_fifty_decimal_strings | 904.73 | 897.20 | 920.17 | 935.16 | 1199 | -0.83% | 1.71% |
+| one_string_ten_int64 | 47.21 | 51.21 | 53.75 | 59.17 | 55 | 8.48% | 13.86% |
+| one_string_ten_decimal_strings | 139.91 | 137.69 | 141.32 | 147.81 | 219 | -1.59% | 1.00% |
+| ten_strings_fifty_decimal_strings | 763.89 | 766.77 | 768.54 | 780.52 | 1199 | 0.38% | 0.61% |
 
 ## All cached paths
 
 | Payload | API | Reps | Framed bytes | Median ns/encode | Mean M/s | p95 ns |
 |---|---|---:|---:|---:|---:|---:|
-| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 164.46 | 6,054,687.15 | 170.20 |
-| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 168.76 | 5,929,801.82 | 170.16 |
-| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 177.55 | 5,637,296.35 | 179.09 |
-| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 57.17 | 17,548,262.11 | 60.87 |
-| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 59.18 | 16,829,605.30 | 61.07 |
-| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 65.14 | 15,337,141.03 | 66.30 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 897.20 | 1,114,032.85 | 909.46 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 920.17 | 1,086,569.61 | 929.36 |
-| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 935.16 | 1,070,257.82 | 938.95 |
+| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 137.69 | 7,249,250.25 | 140.06 |
+| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 141.32 | 7,081,180.06 | 146.10 |
+| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 147.81 | 6,663,703.54 | 176.40 |
+| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 51.21 | 19,166,377.57 | 64.11 |
+| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 53.75 | 17,970,485.27 | 66.17 |
+| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 59.17 | 16,899,913.64 | 60.34 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 766.77 | 1,288,107.87 | 819.48 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 768.54 | 1,295,567.88 | 787.99 |
+| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 780.52 | 1,273,880.48 | 818.82 |
 
 ## Live Schema Registry paths
 
@@ -461,13 +656,13 @@ These measurements include HTTP request/response and Registry processing. `regis
 
 | Path | Reps | Status/result | Median ns | Mean ns | p95 ns | Min ns | Max ns | Requests/sec |
 |---|---:|---|---:|---:|---:|---:|---:|---:|
-| cache_miss_404 | 10 | 404 | 3,035,841.00 | 4,312,432.60 | 12,198,970.00 | 2,360,504.00 | 12,198,970.00 | 231.89 |
-| cold_lookup_new_connection | 10 | 1 | 3,710,801.50 | 4,163,718.40 | 9,112,567.00 | 2,878,328.00 | 9,112,567.00 | 240.17 |
-| cold_register | 10 | 1 | 17,757,481.00 | 18,455,193.30 | 27,027,036.00 | 14,254,120.00 | 27,027,036.00 | 54.19 |
-| concurrent_registration | 10 | 200 | 99,270,014.00 | 96,031,441.40 | 149,898,614.00 | 27,358,194.00 | 149,898,614.00 | 10.41 |
-| registry_lookup_keepalive | 10 | 1 | 2,981,710.50 | 4,176,344.40 | 11,265,721.00 | 2,623,313.00 | 11,265,721.00 | 239.44 |
-| registry_unavailable | 10 | 0 | 458,754.00 | 1,343,060.10 | 3,282,424.00 | 250,895.00 | 3,282,424.00 | 744.57 |
-| retry_failure_then_success | 10 | 200 | 5,723,839.00 | 5,313,711.50 | 7,912,594.00 | 3,077,377.00 | 7,912,594.00 | 188.19 |
+| cache_miss_404 | 10 | 404 | 2,647,041.00 | 3,586,423.90 | 9,154,815.00 | 2,257,785.00 | 9,154,815.00 | 278.83 |
+| cold_lookup_new_connection | 10 | 1 | 3,089,504.50 | 3,428,958.10 | 5,205,971.00 | 2,512,584.00 | 5,205,971.00 | 291.63 |
+| cold_register | 10 | 1 | 13,153,872.50 | 14,646,764.60 | 23,409,630.00 | 11,992,176.00 | 23,409,630.00 | 68.27 |
+| concurrent_registration | 10 | 200 | 87,586,109.50 | 87,031,134.00 | 138,431,611.00 | 23,351,665.00 | 138,431,611.00 | 11.49 |
+| registry_lookup_keepalive | 10 | 1 | 3,274,084.00 | 4,064,203.60 | 10,946,926.00 | 2,791,578.00 | 10,946,926.00 | 246.05 |
+| registry_unavailable | 10 | 0 | 868,421.50 | 1,680,031.20 | 4,765,411.00 | 223,524.00 | 4,765,411.00 | 595.23 |
+| retry_failure_then_success | 10 | 200 | 5,215,200.00 | 4,713,027.70 | 5,855,607.00 | 2,458,500.00 | 5,855,607.00 | 212.18 |
 
 ## HFT interpretation
 
@@ -517,23 +712,23 @@ The pure baseline is Google protobuf generated with Buf using `SPEED` and preall
 
 | Payload | Pure protobuf ns | In-place framed ns | Framed + copy ns | Cached serializer string ns | Framed bytes | In-place overhead | Copy overhead |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| one_string_ten_int64 | 56.13 | 57.14 | 60.70 | 65.42 | 55 | 1.79% | 8.15% |
-| one_string_ten_decimal_strings | 161.64 | 162.50 | 166.40 | 175.68 | 219 | 0.53% | 2.94% |
-| ten_strings_fifty_decimal_strings | 904.73 | 902.58 | 922.61 | 931.33 | 1199 | -0.24% | 1.98% |
+| one_string_ten_int64 | 47.21 | 49.97 | 51.36 | 61.80 | 55 | 5.85% | 8.81% |
+| one_string_ten_decimal_strings | 139.91 | 137.54 | 141.93 | 149.07 | 219 | -1.70% | 1.44% |
+| ten_strings_fifty_decimal_strings | 763.89 | 765.41 | 774.70 | 780.84 | 1199 | 0.20% | 1.42% |
 
 ## All cached paths
 
 | Payload | API | Reps | Framed bytes | Median ns/encode | Mean M/s | p95 ns |
 |---|---|---:|---:|---:|---:|---:|
-| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 162.50 | 6,163,825.86 | 163.40 |
-| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 166.40 | 5,998,138.18 | 169.08 |
-| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 175.68 | 5,695,866.91 | 178.01 |
-| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 57.14 | 17,545,090.88 | 58.51 |
-| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 60.70 | 16,467,194.06 | 62.35 |
-| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 65.42 | 15,291,384.99 | 66.33 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 902.58 | 1,107,987.08 | 907.90 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 922.61 | 1,082,844.30 | 935.35 |
-| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 931.33 | 1,073,554.82 | 936.71 |
+| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 137.54 | 7,120,007.01 | 163.46 |
+| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 141.93 | 7,044,108.80 | 146.58 |
+| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 149.07 | 6,662,558.09 | 158.82 |
+| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 49.97 | 19,764,056.69 | 54.00 |
+| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 51.36 | 19,325,912.18 | 54.34 |
+| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 61.80 | 15,958,482.41 | 71.59 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 765.41 | 1,300,649.40 | 790.63 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 774.70 | 1,292,225.57 | 792.83 |
+| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 780.84 | 1,274,954.20 | 817.38 |
 
 ## Live Schema Registry paths
 
@@ -541,13 +736,13 @@ These measurements include HTTP request/response and Registry processing. `regis
 
 | Path | Reps | Status/result | Median ns | Mean ns | p95 ns | Min ns | Max ns | Requests/sec |
 |---|---:|---|---:|---:|---:|---:|---:|---:|
-| cache_miss_404 | 10 | 404 | 10,882,515.00 | 11,570,972.80 | 19,232,759.00 | 8,308,853.00 | 19,232,759.00 | 86.42 |
-| cold_lookup_new_connection | 10 | 1 | 15,858,214.00 | 15,782,154.20 | 18,325,800.00 | 13,455,685.00 | 18,325,800.00 | 63.36 |
-| cold_register | 10 | 1 | 17,231,843.50 | 18,870,405.30 | 31,627,368.00 | 14,408,122.00 | 31,627,368.00 | 52.99 |
-| concurrent_registration | 10 | 200 | 119,109,780.00 | 118,457,359.80 | 184,805,953.00 | 46,503,186.00 | 184,805,953.00 | 8.44 |
-| registry_lookup_keepalive | 10 | 1 | 5,014,369.00 | 8,705,215.00 | 40,706,901.00 | 3,355,987.00 | 40,706,901.00 | 114.87 |
-| registry_unavailable | 10 | 0 | 454,790.50 | 1,094,973.20 | 2,723,178.00 | 245,171.00 | 2,723,178.00 | 913.26 |
-| retry_failure_then_success | 10 | 200 | 12,411,743.50 | 12,437,988.50 | 16,016,312.00 | 9,568,411.00 | 16,016,312.00 | 80.40 |
+| cache_miss_404 | 10 | 404 | 10,041,561.50 | 10,653,952.60 | 17,000,214.00 | 8,083,882.00 | 17,000,214.00 | 93.86 |
+| cold_lookup_new_connection | 10 | 1 | 13,093,076.00 | 13,398,865.00 | 16,466,531.00 | 10,699,559.00 | 16,466,531.00 | 74.63 |
+| cold_register | 10 | 1 | 14,613,524.00 | 17,753,729.60 | 26,862,145.00 | 12,793,716.00 | 26,862,145.00 | 56.33 |
+| concurrent_registration | 10 | 200 | 96,346,192.00 | 97,306,243.70 | 144,511,730.00 | 47,431,488.00 | 144,511,730.00 | 10.28 |
+| registry_lookup_keepalive | 10 | 1 | 4,100,424.50 | 7,086,557.30 | 36,754,025.00 | 2,953,406.00 | 36,754,025.00 | 141.11 |
+| registry_unavailable | 10 | 0 | 388,124.00 | 1,054,339.10 | 2,748,793.00 | 238,945.00 | 2,748,793.00 | 948.46 |
+| retry_failure_then_success | 10 | 200 | 9,541,902.50 | 9,749,355.40 | 13,179,511.00 | 7,484,072.00 | 13,179,511.00 | 102.57 |
 
 ## HFT interpretation
 
@@ -585,9 +780,9 @@ The companion `REPORT.md` contains the complete pure protobuf/JSON library matri
 
 | Phase | Reps | Status codes | Median ns | Mean ns | p95 ns | Response bytes |
 |---|---:|---|---:|---:|---:|---:|
-| lookup_versions | 10 | 200 | 2,765,678.00 | 3,373,372.60 | 8,631,855.00 | 5.0 |
-| register_v1 | 10 | 200 | 17,563,184.50 | 47,268,788.20 | 311,233,879.00 | 2400.0 |
-| register_v2 | 10 | 200 | 19,908,238.00 | 21,623,327.90 | 40,933,178.00 | 2422.0 |
+| lookup_versions | 10 | 200 | 2,509,418.00 | 2,883,019.50 | 6,742,124.00 | 5.0 |
+| register_v1 | 10 | 200 | 15,416,434.50 | 38,689,061.20 | 237,610,224.00 | 2400.0 |
+| register_v2 | 10 | 200 | 16,131,620.00 | 18,493,193.90 | 31,094,495.00 | 2422.0 |
 
 ## Interpretation
 
@@ -605,16 +800,18 @@ kernel=6.17.0-1020-azure
 compiler=c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
 cmake=cmake version 4.4.2
 buf=1.72.0
-protoc=libprotoc 35.0
+protoc=libprotoc 35.1
 python=Python 3.14.4
-protobuf_package=not-installed
-protobuf_c_package=1.5.1-1ubuntu2
-boost_json_package=1.83.0-5ubuntu5
-jsoncpp_package=1.9.6-5
+protobuf_package=35.1
+protobuf_c_package=1.5.2
+boost_json_package=1.91.0
+jsoncpp_package=not-installed
 rapidjson_package=1.1.0+dfsg2-7.6ubuntu1
-librdkafka=2.8.0
+librdkafka=2.15.0
 yyjson=0.12.0
 nlohmann_json=3.12.0
+jsoncpp=1.9.8
+clang=Ubuntu clang version 22.1.2 (1ubuntu1)
 ```
 
 ### docker-host.txt

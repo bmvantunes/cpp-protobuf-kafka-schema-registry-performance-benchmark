@@ -1,0 +1,5 @@
+runs=12
+iterations=1000000
+repetitions=10
+threads=1,2,4,8
+modes=thread_local,shared_readonly,shared_buffer_mutex
