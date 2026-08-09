@@ -1165,6 +1165,8 @@ one typed in-memory event
 
 Do not serialize Protobuf and then parse it back to create the log line. Do not call DebugString, TextFormat, or Protobuf JSON for logging. Keep the original typed event as the source for both outputs.
 
+The encoding loop shown below is an encoder-worker loop, never code that runs on the market-data, strategy, or order-management hot thread. The hot thread must only capture an owned event and perform a non-blocking handoff to a bounded queue. Protobuf serialization, pipe formatting, Kafka producer interaction, and log writing belong outside the hot path.
+
 ### 16.1 Use one event model
 
 Create or retain an application-level event structure:
@@ -1379,3 +1381,99 @@ Kafka value:
 ~~~
 
 The text line and Protobuf payload must come from the same MarketEvent, but they are separate output representations. The Kafka path must never depend on the logger being enabled or healthy.
+
+## 17. Fully off-hot-path encoding pipeline
+
+The production architecture should make the hot thread almost boring:
+
+~~~text
+market-data / strategy / order-management thread
+                |
+                | non-blocking try_push of an owned fixed-size event
+                v
+        bounded SPSC/MPSC event ring
+                |
+                v
+          encoder worker(s)
+                |
+                +--> Protobuf key/value serialization
+                |       -> six-byte Confluent framing
+                |       -> Kafka producer queue
+                |
+                +--> pipe-line formatting
+                        -> asynchronous log queue/writer
+~~~
+
+### 17.1 What the hot thread may and may not do
+
+The hot thread may:
+
+- Read the already-available market or order data.
+- Copy it into a pre-sized, owned `MarketEvent`.
+- Attach a monotonically increasing sequence number and capture timestamp.
+- Execute a bounded, non-blocking `try_push` or equivalent ring-buffer operation.
+- Update lock-free counters for queue overflow or rejected handoffs.
+
+The hot thread must not:
+
+- Call `SerializeToArray`, `SerializeToString`, `ByteSizeLong`, or any generated Protobuf serializer.
+- Call `std::to_string`, `fmt::format`, `ostringstream`, or any other text formatter.
+- Allocate from the general heap, take a mutex, wait on a condition variable, or perform filesystem I/O.
+- Call `std::cout`, `printf`, a synchronous logger, `rd_kafka_produce`, `rd_kafka_poll`, or Schema Registry HTTP code.
+
+The handoff should look conceptually like this:
+
+~~~cpp
+MarketEvent event = capture_event_into_preallocated_storage();
+event.sequence = next_sequence.fetch_add(1, std::memory_order_relaxed);
+event.captured_ns = steady_clock_now_ns();
+
+if (!event_ring.try_push(std::move(event))) {
+  hot_path_metrics.event_ring_overflow.fetch_add(1, std::memory_order_relaxed);
+  apply_the_explicit_overflow_policy(event);
+}
+~~~
+
+For a genuinely latency-sensitive path, prefer one SPSC ring per producer/consumer pair. If there are multiple producers, use a proven bounded MPSC queue or route each producer to its own SPSC queue. Do not build a new lock-free queue casually; benchmark the chosen queue independently.
+
+### 17.2 Event ownership and queue capacity
+
+Every string, decimal, symbol, or binary field must remain valid until the encoder worker has consumed the event. Do not enqueue `string_view`, raw pointers, or references to exchange buffers whose lifetime ends when the callback returns. Use fixed-capacity inline storage, an object pool, or another ownership scheme that does not allocate on the hot thread.
+
+The queue must be sized from measured bursts, not average throughput. Measure at least:
+
+- handoff latency on the hot thread;
+- queue depth and high-water mark;
+- event age when the worker starts encoding;
+- overflow count and duration;
+- encoder throughput while Kafka and logging are healthy;
+- behavior when Kafka or logging is slow or unavailable.
+
+Queue-full behavior is a business decision and must be explicit. Suitable policies include failover to another capture path, a preallocated emergency queue, overwriting only non-critical snapshots, or rejecting the event while raising an immediate health signal. Never silently drop trading-critical events merely because a benchmark queue filled. A worker is allowed to block or backpressure; the hot thread is not.
+
+### 17.3 Worker responsibilities
+
+The encoder worker owns the expensive work:
+
+1. Pop an owned `MarketEvent` from the ring.
+2. Populate the generated Protobuf key and value messages.
+3. Serialize directly into reusable per-worker buffers. Reserve enough capacity once and reuse it.
+4. Prefix the serialized value with the six-byte Confluent wire header when Schema Registry framing is enabled.
+5. Hand the key and value to a Kafka producer worker or producer queue.
+6. Format the same event into a pipe-delimited line and hand it to an asynchronous log writer, if logging is enabled.
+7. Record separate timing fields for queue wait, Protobuf encoding, pipe formatting, Kafka enqueue, and end-to-end event age.
+
+Keep Kafka producer interaction on the producer side of the handoff. If `rd_kafka_produce` returns `QUEUE_FULL`, polling and retrying belong to that worker, with bounded buffers and an explicit failure policy. They must never turn the market-data thread into a waiting producer.
+
+One encoder worker is the safest starting point for preserving event order. Multiple workers can improve throughput but may reorder records. If ordering matters, route the same Kafka key or instrument to the same worker, use one SPSC queue per ordered stream, and retain the event sequence number so the consumer can detect violations.
+
+### 17.4 Benchmark interpretation
+
+The benchmark must report two different numbers:
+
+- `hot_handoff_ns`: time spent by the producer thread copying/capturing the event and attempting the non-blocking queue handoff;
+- `worker_encode_ns`: time spent by the worker doing Protobuf serialization and pipe formatting.
+
+Also report queue wait and end-to-end age. A low `worker_encode_ns` does not make a blocking hot-thread implementation acceptable, and a low handoff latency does not prove the system can sustain bursts. Run separate modes for Protobuf only, pipe formatting only, both on one encoder worker, Kafka enqueue, and the full asynchronous pipeline. Include queue-full and slow-sink tests so the report demonstrates that sink degradation does not block the hot path.
+
+The preferred production mode is therefore: hot thread -> bounded non-blocking event ring -> encoder worker -> Protobuf/Kafka and asynchronous pipe logger. The benchmark's existing serialization loop is useful for measuring worker cost, but it must not be copied into the trading thread.
