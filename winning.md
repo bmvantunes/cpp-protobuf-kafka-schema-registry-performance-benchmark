@@ -789,13 +789,13 @@ Never publish production artifacts from an untagged branch. Pre-release artifact
 | ES/TypeScript Connect client | bufbuild/es | npm package |
 | Python Protobuf + Connect | protocolbuffers/python plus connectrpc/py | PyPI packages |
 | C++ Protobuf | built-in cpp | CMake library with .pb.h/.pb.cc |
-| C++ Protobuf + gRPC | built-in cpp plus grpc/cpp or local protoc-gen-grpc | CMake library with .pb.* and .grpc.pb.* |
+| C++ Protobuf + official gRPC | built-in cpp plus the official gRPC C++ plugin | CMake library with .pb.* and .grpc.pb.* |
 
 Current Connect-ES uses a unified bufbuild/es plugin that generates message types and service definitions in one pass. Do not blindly add an old separate connect-es plugin to a Connect-ES 2 setup.
 
 Python should publish the Protobuf message package plus the Connect package. Do not generate or publish standard Python gRPC clients for this company unless a legacy consumer explicitly requires them. Retain the exact Connect plugin name already working in the company's repository and pin its version.
 
-C++ pure Protobuf does not need gRPC. Keep trading-contracts-cpp-protobuf separate from trading-contracts-cpp-grpc so an HFT producer does not pull gRPC into its dependency graph.
+C++ pure Protobuf does not need gRPC. Keep trading-contracts-cpp-protobuf separate from trading-contracts-cpp-grpc so an HFT producer does not pull gRPC into its dependency graph. If C++ RPC clients are required, use the official gRPC C++ plugin and runtime; do not invent a custom C++ Connect implementation.
 
 ### 15.3 Buf templates
 
@@ -839,7 +839,7 @@ plugins:
       - paths=source_relative
 ~~~
 
-C++ Protobuf plus gRPC:
+C++ Protobuf plus official gRPC C++:
 
 ~~~yaml
 version: v2
@@ -859,7 +859,7 @@ plugins:
       - paths=source_relative
 ~~~
 
-If hosted gRPC C++ plugins are not allowed, install the exact gRPC C++ plugin inside the pinned Docker toolchain and replace the second entry with:
+If hosted plugin execution is not allowed, install the official gRPC C++ plugin inside the pinned Docker toolchain and replace the second entry with:
 
 ~~~yaml
   - local: protoc-gen-grpc
@@ -1148,4 +1148,4 @@ git diff --exit-code
 
 Then test imports/builds for ES, Python Protobuf, Python Connect, pure C++ Protobuf, and C++ gRPC. Also test checksum verification, clean downstream CMake consumption, and Registry registration from the exact release's schema artifact.
 
-The HFT producer should depend only on trading-contracts-cpp-protobuf unless it genuinely makes RPC calls.
+The HFT producer should depend only on trading-contracts-cpp-protobuf unless it genuinely makes RPC calls. The final language policy is: ConnectRPC for Node/Python services, official Google Protobuf C++ for Kafka payloads, and official gRPC C++ for C++ RPC clients. A Connect-compatible server can still be called from C++ through its gRPC-compatible endpoint.
