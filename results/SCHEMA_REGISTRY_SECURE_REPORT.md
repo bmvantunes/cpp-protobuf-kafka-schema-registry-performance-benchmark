@@ -24,23 +24,23 @@ The pure baseline is Google protobuf generated with Buf using `SPEED` and preall
 
 | Payload | Pure protobuf ns | In-place framed ns | Framed + copy ns | Cached serializer string ns | Framed bytes | In-place overhead | Copy overhead |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| one_string_ten_int64 | 82.47 | 82.81 | 85.60 | 91.97 | 55 | 0.42% | 3.81% |
-| one_string_ten_decimal_strings | 148.72 | 150.11 | 154.01 | 157.25 | 219 | 0.93% | 3.55% |
-| ten_strings_fifty_decimal_strings | 606.25 | 598.85 | 615.76 | 639.88 | 1199 | -1.22% | 1.57% |
+| one_string_ten_int64 | 82.52 | 82.98 | 87.42 | 90.95 | 55 | 0.56% | 5.94% |
+| one_string_ten_decimal_strings | 203.28 | 148.73 | 155.29 | 157.75 | 219 | -26.84% | -23.61% |
+| ten_strings_fifty_decimal_strings | 600.22 | 597.80 | 612.19 | 628.60 | 1199 | -0.40% | 1.99% |
 
 ## All cached paths
 
 | Payload | API | Reps | Framed bytes | Median ns/encode | Mean M/s | p95 ns |
 |---|---|---:|---:|---:|---:|---:|
-| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 150.11 | 6,416,706.02 | 185.72 |
-| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 154.01 | 6,403,819.75 | 170.09 |
-| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 157.25 | 6,354,330.16 | 158.35 |
-| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 82.81 | 11,930,810.84 | 91.78 |
-| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 85.60 | 11,608,483.02 | 89.08 |
-| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 91.97 | 10,740,896.28 | 99.91 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 598.85 | 1,661,444.47 | 628.00 |
-| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 615.76 | 1,613,364.86 | 652.91 |
-| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 639.88 | 1,559,939.75 | 671.69 |
+| one_string_ten_decimal_strings | cached_id_framed_in_place | 10 | 219 | 148.73 | 6,726,492.09 | 150.18 |
+| one_string_ten_decimal_strings | cached_id_framed_with_copy | 10 | 219 | 155.29 | 6,037,991.04 | 200.76 |
+| one_string_ten_decimal_strings | cached_serializer_string | 10 | 219 | 157.75 | 6,302,873.23 | 162.31 |
+| one_string_ten_int64 | cached_id_framed_in_place | 10 | 55 | 82.98 | 11,985,377.84 | 85.73 |
+| one_string_ten_int64 | cached_id_framed_with_copy | 10 | 55 | 87.42 | 11,303,586.06 | 95.03 |
+| one_string_ten_int64 | cached_serializer_string | 10 | 55 | 90.95 | 10,964,010.64 | 93.72 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_in_place | 10 | 1199 | 597.80 | 1,671,323.25 | 601.70 |
+| ten_strings_fifty_decimal_strings | cached_id_framed_with_copy | 10 | 1199 | 612.19 | 1,614,544.59 | 673.66 |
+| ten_strings_fifty_decimal_strings | cached_serializer_string | 10 | 1199 | 628.60 | 1,566,003.93 | 696.17 |
 
 ## Live Schema Registry paths
 
@@ -48,13 +48,13 @@ These measurements include HTTP request/response and Registry processing. `regis
 
 | Path | Reps | Status/result | Median ns | Mean ns | p95 ns | Min ns | Max ns | Requests/sec |
 |---|---:|---|---:|---:|---:|---:|---:|---:|
-| cache_miss_404 | 10 | 404 | 8,605,383.00 | 9,385,837.20 | 14,284,949.00 | 7,043,637.00 | 14,284,949.00 | 106.54 |
-| cold_lookup_new_connection | 10 | 1 | 9,630,900.50 | 10,152,786.60 | 14,165,695.00 | 8,293,726.00 | 14,165,695.00 | 98.50 |
-| cold_register | 10 | 1 | 17,407,461.00 | 17,537,070.20 | 24,527,372.00 | 14,606,836.00 | 24,527,372.00 | 57.02 |
-| concurrent_registration | 10 | 200 | 103,171,448.00 | 100,147,777.50 | 163,825,730.00 | 40,981,152.00 | 163,825,730.00 | 9.99 |
-| registry_lookup_keepalive | 10 | 1 | 3,858,081.00 | 6,444,232.00 | 28,703,278.00 | 2,654,933.00 | 28,703,278.00 | 155.18 |
-| registry_unavailable | 10 | 0 | 165,214.50 | 286,914.90 | 1,031,372.00 | 134,589.00 | 1,031,372.00 | 3,485.35 |
-| retry_failure_then_success | 10 | 200 | 7,746,330.00 | 7,720,654.30 | 9,870,868.00 | 6,567,078.00 | 9,870,868.00 | 129.52 |
+| cache_miss_404 | 10 | 404 | 6,941,812.50 | 7,768,641.40 | 14,276,220.00 | 6,028,848.00 | 14,276,220.00 | 128.72 |
+| cold_lookup_new_connection | 10 | 1 | 10,531,336.50 | 10,626,452.20 | 13,691,286.00 | 9,053,689.00 | 13,691,286.00 | 94.10 |
+| cold_register | 10 | 1 | 15,910,310.50 | 17,045,548.80 | 26,011,489.00 | 14,269,719.00 | 26,011,489.00 | 58.67 |
+| concurrent_registration | 10 | 200 | 91,220,799.50 | 88,092,621.90 | 137,813,218.00 | 35,376,686.00 | 137,813,218.00 | 11.35 |
+| registry_lookup_keepalive | 10 | 1 | 3,849,698.50 | 10,024,759.10 | 64,320,096.00 | 2,705,081.00 | 64,320,096.00 | 99.75 |
+| registry_unavailable | 10 | 0 | 146,379.50 | 163,313.60 | 338,761.00 | 115,504.00 | 338,761.00 | 6,123.19 |
+| retry_failure_then_success | 10 | 200 | 7,671,396.50 | 7,630,116.50 | 8,898,559.00 | 6,486,778.00 | 8,898,559.00 | 131.06 |
 
 ## HFT interpretation
 

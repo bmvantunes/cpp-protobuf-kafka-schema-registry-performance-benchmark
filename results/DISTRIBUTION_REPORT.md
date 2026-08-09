@@ -14,13 +14,13 @@
 
 | Distribution | Reps | Mean bytes | Median ns/encode | Mean ns/encode | Mean M/s |
 |---|---:|---:|---:|---:|---:|
-| int64_small_varints | 10 | 29.00 | 78.77 | 78.80 | 12.69 |
-| string_short_ascii | 10 | 49.00 | 94.75 | 97.80 | 10.30 |
-| string_multibyte_utf8 | 10 | 67.92 | 104.08 | 106.36 | 9.42 |
-| string_long_ascii_256 | 10 | 299.00 | 104.67 | 105.83 | 9.46 |
-| int64_mixed_distribution | 10 | 76.50 | 104.68 | 105.82 | 9.46 |
-| int64_large_varints | 10 | 109.00 | 114.04 | 117.23 | 8.57 |
-| int64_negative_standard_varint | 10 | 119.00 | 118.49 | 121.34 | 8.26 |
+| int64_small_varints | 10 | 29.00 | 90.14 | 102.37 | 10.27 |
+| string_short_ascii | 10 | 49.00 | 98.96 | 105.26 | 9.75 |
+| string_multibyte_utf8 | 10 | 67.92 | 108.46 | 112.24 | 8.98 |
+| int64_mixed_distribution | 10 | 76.50 | 109.39 | 116.44 | 8.68 |
+| int64_negative_standard_varint | 10 | 119.00 | 126.76 | 146.22 | 7.14 |
+| int64_large_varints | 10 | 109.00 | 152.15 | 181.46 | 6.08 |
+| string_long_ascii_256 | 10 | 299.00 | 159.14 | 159.16 | 6.65 |
 
 ## Interpretation
 

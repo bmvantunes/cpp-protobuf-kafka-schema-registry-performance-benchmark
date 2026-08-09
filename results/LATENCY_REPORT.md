@@ -13,18 +13,18 @@
 
 | Payload | Path | Reps | Bytes | Median p50 ns | p90 ns | p99 ns | p99.9 ns | p99.99 ns | Max ns | Mean allocations/rep | Mean allocated bytes/rep |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| one_string_ten_decimal_strings | serialize_array_arena_message | 10 | 213 | 167.00 | 208.00 | 209.00 | 250.50 | 6,896.00 | 88,502.00 | 0.00 | 0.00 |
-| one_string_ten_decimal_strings | serialize_array_fresh_buffer | 10 | 213 | 208.00 | 209.00 | 229.50 | 250.00 | 5,896.00 | 56,918.00 | 1,000,000.00 | 213,000,000.00 |
-| one_string_ten_decimal_strings | serialize_array_reuse | 10 | 213 | 167.00 | 187.50 | 209.00 | 209.00 | 5,354.50 | 33,730.00 | 0.00 | 0.00 |
-| one_string_ten_decimal_strings | serialize_string_reserved | 10 | 213 | 167.00 | 208.00 | 209.00 | 209.00 | 4,145.50 | 36,355.50 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_array_arena_message | 10 | 49 | 125.00 | 125.00 | 125.00 | 126.00 | 2,958.00 | 25,250.50 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_array_fresh_buffer | 10 | 49 | 125.00 | 166.00 | 167.00 | 167.00 | 2,958.50 | 40,230.00 | 1,000,000.00 | 49,000,000.00 |
-| one_string_ten_int64 | serialize_array_reuse | 10 | 49 | 125.00 | 125.00 | 125.00 | 126.00 | 2,958.00 | 30,834.00 | 0.00 | 0.00 |
-| one_string_ten_int64 | serialize_string_reserved | 10 | 49 | 125.00 | 125.00 | 125.00 | 167.00 | 3,000.00 | 31,688.00 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_arena_message | 10 | 1193 | 625.00 | 625.00 | 708.00 | 2,729.00 | 12,917.00 | 119,190.50 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_fresh_buffer | 10 | 1193 | 667.00 | 708.00 | 750.00 | 3,416.50 | 20,563.00 | 771,019.00 | 1,000,000.00 | 1,193,000,000.00 |
-| ten_strings_fifty_decimal_strings | serialize_array_reuse | 10 | 1193 | 625.00 | 625.00 | 667.00 | 2,417.00 | 13,417.50 | 103,482.00 | 0.00 | 0.00 |
-| ten_strings_fifty_decimal_strings | serialize_string_reserved | 10 | 1193 | 666.50 | 667.00 | 1,604.50 | 5,229.50 | 51,835.00 | 4,158,168.00 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_array_arena_message | 10 | 213 | 167.00 | 208.00 | 209.00 | 209.00 | 4,833.50 | 37,022.00 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_array_fresh_buffer | 10 | 213 | 208.00 | 209.00 | 209.00 | 250.00 | 6,250.00 | 59,252.00 | 1,000,000.00 | 213,000,000.00 |
+| one_string_ten_decimal_strings | serialize_array_reuse | 10 | 213 | 167.00 | 208.00 | 209.00 | 209.00 | 3,479.00 | 46,501.50 | 0.00 | 0.00 |
+| one_string_ten_decimal_strings | serialize_string_reserved | 10 | 213 | 167.00 | 209.00 | 209.00 | 250.00 | 6,208.50 | 30,979.50 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_array_arena_message | 10 | 49 | 125.00 | 125.00 | 125.00 | 166.00 | 2,979.50 | 39,501.50 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_array_fresh_buffer | 10 | 49 | 125.00 | 167.00 | 167.00 | 167.00 | 3,312.50 | 57,231.00 | 1,000,000.00 | 49,000,000.00 |
+| one_string_ten_int64 | serialize_array_reuse | 10 | 49 | 125.00 | 125.00 | 125.00 | 166.00 | 3,000.50 | 38,980.00 | 0.00 | 0.00 |
+| one_string_ten_int64 | serialize_string_reserved | 10 | 49 | 125.00 | 125.00 | 125.00 | 167.00 | 3,000.00 | 43,813.50 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_arena_message | 10 | 1193 | 625.00 | 625.50 | 667.00 | 3,312.50 | 13,104.50 | 94,294.00 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_fresh_buffer | 10 | 1193 | 667.00 | 708.50 | 750.00 | 3,458.00 | 16,437.50 | 125,337.00 | 1,000,000.00 | 1,193,000,000.00 |
+| ten_strings_fifty_decimal_strings | serialize_array_reuse | 10 | 1193 | 625.00 | 667.00 | 709.00 | 3,479.50 | 22,750.50 | 482,492.00 | 0.00 | 0.00 |
+| ten_strings_fifty_decimal_strings | serialize_string_reserved | 10 | 1193 | 625.00 | 667.00 | 708.00 | 3,333.50 | 14,271.50 | 105,065.50 | 0.00 | 0.00 |
 
 ## Allocation interpretation
 

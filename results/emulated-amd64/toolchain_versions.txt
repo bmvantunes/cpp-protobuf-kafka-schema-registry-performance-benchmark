@@ -1,13 +1,13 @@
-architecture=aarch64
+architecture=x86_64
 kernel=7.0.11-orbstack-00360-gc9bc4d96ac70
 compiler=c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
-cmake=cmake version 4.4.2
+cmake=cmake version 4.2.3
 buf=1.72.0
 protoc=libprotoc 35.1
 python=Python 3.14.4
 protobuf_package=35.1
 protobuf_c_package=1.5.2
-boost_json_package=1.91.0
+boost_json_package=1.90.0
 jsoncpp_package=not-installed
 rapidjson_package=1.1.0+dfsg2-7.6ubuntu1
 librdkafka=2.15.0

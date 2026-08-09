@@ -13,18 +13,18 @@
 
 | Mode | Threads | Reps | Bytes | Median ns/encode | Mean ns/encode | Mean M/s |
 |---|---:|---:|---:|---:|---:|---:|
-| shared_buffer_mutex | 1 | 10 | 49 | 101.04 | 103.01 | 9.73 |
-| shared_buffer_mutex | 2 | 10 | 49 | 101.76 | 105.78 | 9.51 |
-| shared_buffer_mutex | 4 | 10 | 49 | 101.65 | 103.77 | 9.65 |
-| shared_buffer_mutex | 8 | 10 | 49 | 102.62 | 103.07 | 9.70 |
-| shared_readonly | 1 | 10 | 49 | 88.16 | 90.26 | 11.13 |
-| shared_readonly | 2 | 10 | 49 | 85.93 | 86.61 | 11.55 |
-| shared_readonly | 4 | 10 | 49 | 86.61 | 86.86 | 11.52 |
-| shared_readonly | 8 | 10 | 49 | 84.00 | 84.48 | 11.84 |
-| thread_local | 1 | 10 | 49 | 100.44 | 109.51 | 9.44 |
-| thread_local | 2 | 10 | 49 | 99.34 | 103.87 | 9.78 |
-| thread_local | 4 | 10 | 49 | 97.29 | 101.93 | 10.05 |
-| thread_local | 8 | 10 | 49 | 94.16 | 99.16 | 10.28 |
+| shared_buffer_mutex | 1 | 10 | 49 | 102.77 | 103.66 | 9.65 |
+| shared_buffer_mutex | 2 | 10 | 49 | 103.34 | 104.13 | 9.61 |
+| shared_buffer_mutex | 4 | 10 | 49 | 104.66 | 107.45 | 9.36 |
+| shared_buffer_mutex | 8 | 10 | 49 | 104.79 | 104.94 | 9.53 |
+| shared_readonly | 1 | 10 | 49 | 85.40 | 86.04 | 11.63 |
+| shared_readonly | 2 | 10 | 49 | 86.68 | 88.48 | 11.34 |
+| shared_readonly | 4 | 10 | 49 | 89.31 | 91.30 | 11.00 |
+| shared_readonly | 8 | 10 | 49 | 85.43 | 85.40 | 11.71 |
+| thread_local | 1 | 10 | 49 | 86.96 | 90.52 | 11.18 |
+| thread_local | 2 | 10 | 49 | 84.63 | 84.56 | 11.83 |
+| thread_local | 4 | 10 | 49 | 84.72 | 88.86 | 11.41 |
+| thread_local | 8 | 10 | 49 | 85.82 | 86.46 | 11.57 |
 
 ## Mode definitions
 
