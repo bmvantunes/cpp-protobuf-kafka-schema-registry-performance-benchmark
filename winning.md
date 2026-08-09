@@ -756,7 +756,6 @@ GitLab npm Registry
 
 GitLab PyPI Registry
   -> company-trading-contracts-protobuf
-  -> company-trading-contracts-grpc
   -> company-trading-contracts-connect
 ~~~
 
@@ -776,7 +775,6 @@ That tag must generate and publish all artifacts from the same .proto sources:
 ~~~text
 ES/TypeScript package       1.4.0
 Python Protobuf package     1.4.0
-Python gRPC package         1.4.0
 Python Connect package      1.4.0
 C++ Protobuf package        1.4.0
 C++ gRPC package            1.4.0
@@ -789,14 +787,13 @@ Never publish production artifacts from an untagged branch. Pre-release artifact
 | Artifact | Buf generation | Distribution |
 |---|---|---|
 | ES/TypeScript Connect client | bufbuild/es | npm package |
-| Python Protobuf + gRPC | protocolbuffers/python plus grpc/python | PyPI packages |
 | Python Protobuf + Connect | protocolbuffers/python plus connectrpc/py | PyPI packages |
 | C++ Protobuf | built-in cpp | CMake library with .pb.h/.pb.cc |
 | C++ Protobuf + gRPC | built-in cpp plus grpc/cpp or local protoc-gen-grpc | CMake library with .pb.* and .grpc.pb.* |
 
 Current Connect-ES uses a unified bufbuild/es plugin that generates message types and service definitions in one pass. Do not blindly add an old separate connect-es plugin to a Connect-ES 2 setup.
 
-Python has separate Protobuf/gRPC and Connect paths. Retain the exact plugin names already working in the company's repository and pin their versions.
+Python should publish the Protobuf message package plus the Connect package. Do not generate or publish standard Python gRPC clients for this company unless a legacy consumer explicitly requires them. Retain the exact Connect plugin name already working in the company's repository and pin its version.
 
 C++ pure Protobuf does not need gRPC. Keep trading-contracts-cpp-protobuf separate from trading-contracts-cpp-grpc so an HFT producer does not pull gRPC into its dependency graph.
 
@@ -809,19 +806,6 @@ version: v2
 plugins:
   - remote: buf.build/bufbuild/es:PINNED_VERSION
     out: gen/es
-~~~
-
-Python with standard gRPC:
-
-~~~yaml
-version: v2
-plugins:
-  - remote: buf.build/protocolbuffers/python:PINNED_VERSION
-    out: gen/python
-  - remote: buf.build/protocolbuffers/pyi:PINNED_VERSION
-    out: gen/python
-  - remote: buf.build/grpc/python:PINNED_VERSION
-    out: gen/python
 ~~~
 
 Python with Connect:
@@ -884,7 +868,7 @@ If hosted gRPC C++ plugins are not allowed, install the exact gRPC C++ plugin in
       - paths=source_relative
 ~~~
 
-Buf's official remote-plugin guide contains the standard Python Protobuf/gRPC combination. Pin every plugin version in release CI.
+Buf's official remote-plugin guide also documents standard Python gRPC generation, but that is intentionally excluded from this company's default package set. Pin every plugin version that is actually used in release CI.
 
 ### 15.4 C++ package contents
 
@@ -985,7 +969,6 @@ generate:
   script:
     - rm -rf gen
     - buf generate --template buf.gen.es.yaml
-    - buf generate --template buf.gen.python.grpc.yaml
     - buf generate --template buf.gen.python.connect.yaml
     - buf generate --template buf.gen.cpp.yaml
     - buf generate --template buf.gen.cpp.grpc.yaml
@@ -1043,7 +1026,6 @@ package_python:
       artifacts: true
   script:
     - python -m build packages/python-protobuf
-    - python -m build packages/python-grpc
     - python -m build packages/python-connect
   artifacts:
     expire_in: 7 days
@@ -1158,13 +1140,12 @@ buf lint
 buf build
 buf breaking --against '.git#branch=main'
 buf generate --template buf.gen.es.yaml
-buf generate --template buf.gen.python.grpc.yaml
 buf generate --template buf.gen.python.connect.yaml
 buf generate --template buf.gen.cpp.yaml
 buf generate --template buf.gen.cpp.grpc.yaml
 git diff --exit-code
 ~~~
 
-Then test imports/builds for ES, Python Protobuf, Python gRPC, Python Connect, pure C++ Protobuf, and C++ gRPC. Also test checksum verification, clean downstream CMake consumption, and Registry registration from the exact release's schema artifact.
+Then test imports/builds for ES, Python Protobuf, Python Connect, pure C++ Protobuf, and C++ gRPC. Also test checksum verification, clean downstream CMake consumption, and Registry registration from the exact release's schema artifact.
 
 The HFT producer should depend only on trading-contracts-cpp-protobuf unless it genuinely makes RPC calls.
