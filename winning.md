@@ -1,0 +1,731 @@
+# Winning path: Buf-generated Protobuf key/value producer for Kafka
+
+This is a handoff for the Claude Code agent who will implement the production-shaped producer at work.
+
+Target contract:
+
+- Kafka topic: test-topic.
+- Kafka key: a Buf-generated C++ Protobuf message from test-keys.proto.
+- Kafka value: a Buf-generated C++ Protobuf message from test-values.proto.
+- Schema Registry: Confluent Protobuf schemas with separate key and value subjects and IDs.
+- Hot path: populate messages, serialize key and value, add cached Confluent framing, and enqueue both bytes with librdkafka.
+- No decode benchmark.
+- No Schema Registry HTTP request per Kafka message.
+- All build, service, and validation commands run in Docker.
+
+The safe baseline is caller-owned reusable buffers plus RD_KAFKA_MSG_F_COPY. Once it is correct, add an ownership-transfer mode and measure it. Do not replace the safe baseline with an unmeasured zero-copy design.
+
+## 1. What the agent must deliver
+
+Create this layout, adapting only existing equivalent target names:
+
+    proto/
+      winning/
+        test-keys.proto
+        test-values.proto
+    buf.gen.winning.yaml
+    src/
+      winning_producer.cc
+      schema_registry_client.cc
+    include/
+      winning/
+        confluent_protobuf.h
+        schema_registry_client.h
+
+The application must:
+
+1. Read both .proto files at startup.
+2. Resolve or register the key schema under test-topic-key.
+3. Resolve or register the value schema under test-topic-value.
+4. Cache both returned schema IDs in process memory.
+5. Build generated Protobuf messages.
+6. Serialize directly into reusable buffers after a six-byte prefix.
+7. Produce the framed key and framed value to test-topic using librdkafka.
+8. Poll librdkafka, retry QUEUE_FULL, flush before exit, and fail on delivery errors.
+9. Expose broker, Registry URL, credentials, topic, Kafka settings, iterations, and repetitions.
+10. Provide benchmark mode that refuses fewer than 1,000,000 messages per repetition or fewer than 10 repetitions.
+
+Schema Registry calls belong to startup, deployment, rollout, or an explicitly bounded recovery path. They must not be inside encode, produce, or the per-message loop.
+
+## 2. Exact proto files
+
+Use self-contained schemas initially. Imported Protobuf files require Schema Registry references and should be added only after this path works.
+
+### proto/winning/test-keys.proto
+
+~~~protobuf
+syntax = "proto3";
+
+package winning.keys.v1;
+
+// Keep key fields stable. Changing encoded key bytes can change Kafka partitioning.
+option optimize_for = SPEED;
+
+message TestKey {
+  string venue = 1;
+  string symbol = 2;
+  uint64 instrument_id = 3;
+}
+~~~
+
+### proto/winning/test-values.proto
+
+~~~protobuf
+syntax = "proto3";
+
+package winning.values.v1;
+
+option optimize_for = SPEED;
+
+message TestValue {
+  string symbol = 1;
+  uint64 instrument_id = 2;
+  int64 sequence = 3;
+  int64 event_time_unix_nanos = 4;
+
+  // 123456789 means 1.23456789 at fixed scale 8.
+  sint64 price_scaled_8 = 5;
+  sint64 quantity = 6;
+  string venue = 7;
+  string source = 8;
+}
+~~~
+
+Rules:
+
+- Never use double for an exact financial decimal.
+- Use sint64 when signed values are usually small; ZigZag keeps small negative values compact.
+- Use fixed64 when fixed-width unsigned values are preferable; measure this rather than assuming it wins.
+- Use a string only when arbitrary decimal scale or exact decimal text is required.
+- Never add a random nonce, changing wall-clock value, or other unstable field to TestKey.
+- Never reuse a Protobuf field number for a different meaning. Reserve removed numbers.
+- If the real production message already exists, preserve its field numbers and semantics. This example is a test shape, not permission to renumber a live contract.
+
+## 3. Exact Buf generator file
+
+The conventional Buf names are buf.gen.yaml or a named template such as buf.gen.winning.yaml. Use buf.gen.winning.yaml; buf.generate.yaml is not the normal Buf template name.
+
+Create buf.gen.winning.yaml at the repository root:
+
+~~~yaml
+version: v2
+plugins:
+  - protoc_builtin: cpp
+    out: generated/winning
+    opt:
+      - paths=source_relative
+~~~
+
+Generate in the container:
+
+~~~bash
+buf lint
+buf generate proto --template buf.gen.winning.yaml
+~~~
+
+Expected generated paths:
+
+~~~text
+generated/winning/winning/test-keys.pb.h
+generated/winning/winning/test-keys.pb.cc
+generated/winning/winning/test-values.pb.h
+generated/winning/winning/test-values.pb.cc
+~~~
+
+paths=source_relative makes generated paths follow the source path. It does not change the wire format. The important generated-code performance choice is option optimize_for = SPEED in each schema. SPEED is also the default, but declare it explicitly so it cannot silently change.
+
+Do not add LITE_RUNTIME to this target unless binary size is a measured requirement. The default recommendation is full Google Protobuf SPEED.
+
+## 4. Build settings
+
+Build in Release mode:
+
+~~~bash
+cmake -S . -B build-winning -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_STANDARD=23
+cmake --build build-winning --parallel --target winning_producer
+~~~
+
+The target should use:
+
+~~~text
+-O3 -DNDEBUG -Wall -Wextra -Wpedantic
+~~~
+
+Use -march=native only when the binary is built and run on the same homogeneous CPU class. For a fleet, use the approved deployment CPU target and benchmark that exact target. Consider LTO only after measurement.
+
+The hot API is:
+
+~~~cpp
+const std::size_t bytes = message.ByteSizeLong();
+message.SerializeToArray(destination, static_cast<int>(bytes));
+~~~
+
+Check every return value; reject payloads larger than INT_MAX before the cast; size after populating fields; reuse buffers; and give each producer thread its own message and buffers. Arena is not automatically faster and must be benchmarked separately.
+
+SerializeToString is a valid comparison but not the default because it can add string growth/allocation and another copy when the Confluent prefix is attached.
+
+## 5. Confluent Protobuf framing
+
+For one top-level Protobuf message:
+
+~~~text
+byte 0       : magic byte 0x00
+bytes 1..4   : schema ID, unsigned 32-bit big-endian
+byte 5       : message-index encoding for top-level message index 0x00
+bytes 6..end : normal Protobuf wire payload
+~~~
+
+Both key and value need a six-byte prefix but normally have different subjects and IDs:
+
+~~~text
+test-topic-key   -> winning.keys.v1.TestKey    -> key_schema_id
+test-topic-value -> winning.values.v1.TestValue -> value_schema_id
+~~~
+
+The prefix is local work, not a Registry request. Never hard-code schema ID 1.
+
+Create include/winning/confluent_protobuf.h:
+
+~~~cpp
+#pragma once
+
+#include <google/protobuf/message_lite.h>
+
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+
+namespace winning {
+
+inline void write_big_endian_u32(std::uint8_t* destination, std::uint32_t value) {
+  destination[0] = static_cast<std::uint8_t>(value >> 24);
+  destination[1] = static_cast<std::uint8_t>(value >> 16);
+  destination[2] = static_cast<std::uint8_t>(value >> 8);
+  destination[3] = static_cast<std::uint8_t>(value);
+}
+
+inline std::size_t serialize_confluent_protobuf(
+    const google::protobuf::MessageLite& message,
+    std::uint32_t schema_id,
+    std::vector<std::uint8_t>& output) {
+  const std::size_t payload_size = message.ByteSizeLong();
+  if (payload_size > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::length_error("Protobuf payload is larger than SerializeToArray's int limit");
+  }
+
+  constexpr std::size_t prefix_size = 6;
+  output.resize(prefix_size + payload_size);
+  output[0] = 0;
+  write_big_endian_u32(output.data() + 1, schema_id);
+  output[5] = 0;  // one-byte message-index array [0]
+
+  if (!message.SerializeToArray(output.data() + prefix_size,
+                                static_cast<int>(payload_size))) {
+    throw std::runtime_error("Protobuf serialization failed");
+  }
+  return output.size();
+}
+
+}  // namespace winning
+~~~
+
+This avoids serializing into one buffer and then copying the payload into a framed buffer. Reserve a known upper bound if available.
+
+## 6. Schema Registry client
+
+Use libcurl for Registry HTTP and nlohmann_json (or the work-standard JSON library) for the control plane. Do not shell out to curl.
+
+The client should expose an API equivalent to:
+
+~~~cpp
+struct RegisteredSchema {
+  std::string subject;
+  std::uint32_t id;
+  std::string fingerprint;
+};
+
+class SchemaRegistryClient {
+ public:
+  SchemaRegistryClient(std::string base_url,
+                       std::string username,
+                       std::string password);
+
+  RegisteredSchema register_or_lookup(const std::string& subject,
+                                      const std::string& proto_source);
+};
+~~~
+
+For each subject:
+
+1. Read the exact .proto source used for the build.
+2. Create a JSON body with a JSON library:
+   
+       {"schemaType":"PROTOBUF","schema":"syntax = \"proto3\";\npackage winning.keys.v1;\n..."}
+
+3. Resolve with POST /subjects/{subject} using that body.
+4. If exact-schema lookup returns 404, register with POST /subjects/{subject}/versions.
+5. Parse {"id": 123}.
+6. Validate the ID is positive and fits uint32_t.
+7. Cache the ID in immutable/read-mostly producer state.
+8. Fail startup if resolution or registration fails. Never send unframed data as a fallback.
+
+Use these headers:
+
+~~~text
+Content-Type: application/vnd.schemaregistry.v1+json
+Accept: application/vnd.schemaregistry.v1+json
+~~~
+
+The example schemas have no imports, so no references array is needed. If production schemas import another .proto, register dependencies first and include Schema Registry references with dependency name, subject, and version. Test this against the exact Registry version used at work.
+
+Use separate compatibility policy for key and value. BACKWARD or FULL may be appropriate, but that is a platform decision. Compatibility does not guarantee that a key change preserves desired Kafka partitioning semantics.
+
+The client must support HTTP/HTTPS, connection and total timeouts, TLS verification by default, authentication, bounded startup retries, an explicit invalid-ID recovery path, and metrics. Never log credentials. For HTTPS, the default must verify certificates: CURLOPT_SSL_VERIFYPEER=1 and CURLOPT_SSL_VERIFYHOST=2.
+
+The existing repository Schema Registry benchmark already uses libcurl, the PROTOBUF schema type, timeouts, TLS options, and response validation. Reuse those patterns.
+
+## 7. Producer core
+
+Create src/winning_producer.cc. This is the core shape the agent should make fully compilable, with RAII wrappers added around librdkafka handles:
+
+~~~cpp
+#include "generated/winning/winning/test-keys.pb.h"
+#include "generated/winning/winning/test-values.pb.h"
+#include "winning/confluent_protobuf.h"
+#include "winning/schema_registry_client.h"
+
+#include <librdkafka/rdkafka.h>
+
+#include <atomic>
+#include <cstdint>
+#include <cstdlib>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+
+std::atomic<std::uint64_t> delivery_errors{0};
+
+void delivery_callback(rd_kafka_t*, const rd_kafka_message_t* message, void*) {
+  if (message->err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+    delivery_errors.fetch_add(1, std::memory_order_relaxed);
+    std::cerr << "Kafka delivery error: "
+              << rd_kafka_message_errstr(message) << '\n';
+  }
+}
+
+std::string env_or(const char* name, std::string fallback) {
+  if (const char* value = std::getenv(name); value != nullptr && *value != '\0') {
+    return value;
+  }
+  return fallback;
+}
+
+std::uint64_t env_u64(const char* name, std::uint64_t fallback) {
+  if (const char* value = std::getenv(name); value != nullptr && *value != '\0') {
+    return std::stoull(value);
+  }
+  return fallback;
+}
+
+winning::keys::v1::TestKey make_key() {
+  winning::keys::v1::TestKey key;
+  key.set_venue("XNAS");
+  key.set_symbol("BTC-USD");
+  key.set_instrument_id(42);
+  return key;
+}
+
+winning::values::v1::TestValue make_value(std::uint64_t sequence) {
+  winning::values::v1::TestValue value;
+  value.set_symbol("BTC-USD");
+  value.set_instrument_id(42);
+  value.set_sequence(static_cast<std::int64_t>(sequence));
+  value.set_event_time_unix_nanos(1'750'000'000'000'000'000LL);
+  value.set_price_scaled_8(123'456'789);
+  value.set_quantity(100);
+  value.set_venue("XNAS");
+  value.set_source("feed-a");
+  return value;
+}
+
+void set_conf(rd_kafka_conf_t* conf, const char* key, const std::string& value) {
+  char error[512]{};
+  if (rd_kafka_conf_set(conf, key, value.c_str(), error, sizeof(error))
+      != RD_KAFKA_CONF_OK) {
+    throw std::runtime_error(std::string("Kafka config ") + key + ": " + error);
+  }
+}
+
+rd_kafka_t* make_producer(const std::string& brokers) {
+  rd_kafka_conf_t* conf = rd_kafka_conf_new();
+  set_conf(conf, "bootstrap.servers", brokers);
+  set_conf(conf, "enable.idempotence", "true");
+  set_conf(conf, "acks", "all");
+  set_conf(conf, "retries", "2147483647");
+  set_conf(conf, "max.in.flight.requests.per.connection", "5");
+  set_conf(conf, "compression.type", "none");
+  set_conf(conf, "linger.ms", "0");
+  set_conf(conf, "batch.num.messages", "1");
+  set_conf(conf, "message.timeout.ms", "30000");
+  rd_kafka_conf_set_dr_msg_cb(conf, delivery_callback);
+
+  char error[512]{};
+  rd_kafka_t* producer = rd_kafka_new(
+      RD_KAFKA_PRODUCER, conf, error, sizeof(error));
+  if (producer == nullptr) {
+    throw std::runtime_error(std::string("Kafka producer: ") + error);
+  }
+  return producer;
+}
+
+bool produce_copy(rd_kafka_topic_t* topic,
+                  const std::vector<std::uint8_t>& key,
+                  const std::vector<std::uint8_t>& value) {
+  // COPY makes librdkafka copy key and value before this returns.
+  return rd_kafka_produce(
+      topic,
+      RD_KAFKA_PARTITION_UA,
+      RD_KAFKA_MSG_F_COPY,
+      const_cast<std::uint8_t*>(value.data()), value.size(),
+      key.data(), key.size(), nullptr) == 0;
+}
+
+void produce_with_retry(rd_kafka_t* producer,
+                        rd_kafka_topic_t* topic,
+                        const std::vector<std::uint8_t>& key,
+                        const std::vector<std::uint8_t>& value) {
+  for (;;) {
+    if (produce_copy(topic, key, value)) return;
+
+    const auto error = rd_kafka_last_error();
+    if (error != RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+      throw std::runtime_error(
+          std::string("rd_kafka_produce: ") + rd_kafka_err2str(error));
+    }
+    rd_kafka_poll(producer, 1);
+  }
+}
+
+}  // namespace
+
+int main() {
+  try {
+    const std::string brokers = env_or("KAFKA_BROKERS", "kafka:29092");
+    const std::string registry_url =
+        env_or("SCHEMA_REGISTRY_URL", "http://schema-registry:8081");
+    const std::string topic = env_or("KAFKA_TOPIC", "test-topic");
+    const std::uint64_t iterations = env_u64("ITERATIONS", 1'000'000);
+    const std::uint64_t repetitions = env_u64("REPETITIONS", 10);
+
+    if (iterations < 1'000'000 || repetitions < 10) {
+      throw std::runtime_error(
+          "benchmark requires ITERATIONS >= 1000000 and REPETITIONS >= 10");
+    }
+
+    winning::SchemaRegistryClient registry(
+        registry_url,
+        std::getenv("SCHEMA_REGISTRY_USERNAME")
+            ? std::getenv("SCHEMA_REGISTRY_USERNAME") : "",
+        std::getenv("SCHEMA_REGISTRY_PASSWORD")
+            ? std::getenv("SCHEMA_REGISTRY_PASSWORD") : "");
+
+    const auto key_schema = registry.register_or_lookup(
+        topic + "-key",
+        winning::read_file("proto/winning/test-keys.proto"));
+    const auto value_schema = registry.register_or_lookup(
+        topic + "-value",
+        winning::read_file("proto/winning/test-values.proto"));
+
+    std::cerr << "key subject=" << key_schema.subject
+              << " id=" << key_schema.id
+              << "; value subject=" << value_schema.subject
+              << " id=" << value_schema.id << '\n';
+
+    rd_kafka_t* producer = make_producer(brokers);
+    rd_kafka_topic_t* kafka_topic =
+        rd_kafka_topic_new(producer, topic.c_str(), nullptr);
+    if (kafka_topic == nullptr) {
+      throw std::runtime_error("cannot create Kafka topic handle");
+    }
+
+    const auto key_message = make_key();
+    std::vector<std::uint8_t> key_bytes;
+    std::vector<std::uint8_t> value_bytes;
+    key_bytes.reserve(256);
+    value_bytes.reserve(1024);
+
+    for (std::uint64_t repetition = 1; repetition <= repetitions; ++repetition) {
+      delivery_errors.store(0, std::memory_order_relaxed);
+
+      for (std::uint64_t i = 0; i < iterations; ++i) {
+        // For maximum throughput, construct once and mutate only changing
+        // fields if that matches the real application's ownership model.
+        const auto value_message = make_value(i);
+
+        winning::serialize_confluent_protobuf(
+            key_message, key_schema.id, key_bytes);
+        winning::serialize_confluent_protobuf(
+            value_message, value_schema.id, value_bytes);
+
+        produce_with_retry(producer, kafka_topic, key_bytes, value_bytes);
+
+        if ((i & 0x3fff) == 0) {
+          rd_kafka_poll(producer, 0);
+        }
+      }
+
+      if (rd_kafka_flush(producer, 120'000)
+          != RD_KAFKA_RESP_ERR_NO_ERROR) {
+        throw std::runtime_error("Kafka flush failed");
+      }
+
+      const auto errors = delivery_errors.load(std::memory_order_relaxed);
+      if (errors != 0) {
+        throw std::runtime_error(
+            "Kafka delivery errors: " + std::to_string(errors));
+      }
+      std::cerr << "completed repetition " << repetition << '\n';
+    }
+
+    rd_kafka_topic_destroy(kafka_topic);
+    rd_kafka_destroy(producer);
+    return 0;
+  } catch (const std::exception& error) {
+    std::cerr << "ERROR: " << error.what() << '\n';
+    return 1;
+  }
+}
+~~~
+
+Required corrections:
+
+- Put read_file in a source file or inline utility; do not define a normal non-inline function in a multiply included header.
+- Use RAII wrappers for librdkafka handles.
+- Do not construct a new message and allocate all strings per record unless that is real application behavior. Benchmark immutable-message reuse and realistic mutation separately.
+- Record enqueue time separately from flush/delivery time.
+- For correctness, use RD_KAFKA_MSG_F_COPY first. An ownership-transfer path must allocate memory under librdkafka's ownership contract, transfer only after successful serialization, and free on every produce failure.
+- Optimize key and value together. Optimizing only the value can hide the cost of copying the key.
+
+## 8. CMake target
+
+Add a separate target:
+
+~~~cmake
+add_executable(winning_producer
+  src/winning_producer.cc
+  src/schema_registry_client.cc
+  generated/winning/winning/test-keys.pb.cc
+  generated/winning/winning/test-values.pb.cc
+)
+
+target_include_directories(winning_producer PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/generated/winning
+  ${RDKAFKA_INCLUDE_DIR}
+)
+
+target_link_libraries(winning_producer PRIVATE
+  protobuf::libprotobuf
+  ${RDKAFKA_LIBRARY}
+  CURL::libcurl
+  nlohmann_json::nlohmann_json
+)
+
+target_compile_options(winning_producer PRIVATE
+  -O3 -DNDEBUG -Wall -Wextra -Wpedantic
+)
+~~~
+
+The current repository already discovers Protobuf, nlohmann/json, CURL, and librdkafka. If the work repository does not, add those dependencies to CMake and Docker. Do not link a second Kafka client library.
+
+If generated paths differ, use paths emitted by Buf. Never hand-edit generated files.
+
+## 9. Docker-only build and run
+
+Build the image and start the existing Confluent stack:
+
+~~~bash
+docker build --progress=plain -t winning-producer:local .
+docker compose -f docker-compose.schema-registry.yml up -d
+~~~
+
+From the producer container use service names, not localhost:
+
+~~~text
+KAFKA_BROKERS=kafka:29092
+SCHEMA_REGISTRY_URL=http://schema-registry:8081
+KAFKA_TOPIC=test-topic
+~~~
+
+Inside the build container:
+
+~~~bash
+buf lint
+buf generate proto --template buf.gen.winning.yaml
+cmake -S . -B build-winning -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-winning --parallel --target winning_producer
+build-winning/winning_producer
+~~~
+
+The host-published Registry port in this repository is 18081; from another container use schema-registry:8081. Discover the exact Docker network with:
+
+~~~bash
+docker network ls
+docker compose -f docker-compose.schema-registry.yml ps
+~~~
+
+For a smoke test, use ITERATIONS=1 REPETITIONS=1, but do not call that a benchmark. The benchmark gate is 1,000,000 x 10.
+
+## 10. Kafka profiles
+
+Implement named profiles so durability trade-offs are visible.
+
+Latency-oriented:
+
+~~~text
+compression.type=none
+linger.ms=0
+batch.num.messages=1
+acks=1
+enable.idempotence=false
+~~~
+
+Durable/idempotent:
+
+~~~text
+compression.type=none
+linger.ms=0
+batch.num.messages=1
+acks=all
+enable.idempotence=true
+retries=2147483647
+max.in.flight.requests.per.connection=5
+~~~
+
+Throughput/batching:
+
+~~~text
+compression.type=zstd
+linger.ms=1
+batch.num.messages=100
+acks=all
+enable.idempotence=true
+~~~
+
+Benchmark profiles separately. A faster profile is not a production win if its delivery semantics are unacceptable.
+
+Record broker/client versions, CPU model and architecture, compiler and flags, raw and framed bytes, both schema IDs, acks, idempotence, compression, linger, batch size, retries, queue-full retries, delivery errors, enqueue time, and flush time.
+
+## 11. Validation checklist
+
+Schema and generated code:
+
+~~~bash
+buf lint
+buf generate proto --template buf.gen.winning.yaml
+git diff --check
+~~~
+
+Check generated namespaces:
+
+~~~cpp
+winning::keys::v1::TestKey
+winning::values::v1::TestValue
+~~~
+
+Registry subjects from the host:
+
+~~~bash
+curl --fail http://localhost:18081/subjects/test-topic-key/versions
+curl --fail http://localhost:18081/subjects/test-topic-value/versions
+curl --fail http://localhost:18081/subjects/test-topic-key/versions/latest
+curl --fail http://localhost:18081/subjects/test-topic-value/versions/latest
+~~~
+
+The application must log both subjects and IDs, never credentials. Different key/value IDs are normal.
+
+Byte-level framing for both key and value:
+
+~~~text
+bytes[0] == 0x00
+bytes[1..4] == that subject's schema ID in big-endian order
+bytes[5] == 0x00
+bytes[6..] == normal SerializeToArray output
+~~~
+
+The key must use key_schema_id and the value must use value_schema_id. Using the value ID for the key is a serious bug.
+
+Kafka checks:
+
+- Topic is exactly test-topic.
+- Key bytes are non-null Kafka key data.
+- Value bytes are non-null Kafka value data.
+- Stable identical key bytes produce stable partition selection.
+- QUEUE_FULL is retried with polling and a bounded policy.
+- rd_kafka_flush runs before destruction.
+- Any non-zero delivery error count exits non-zero.
+- No consumer or decoding code is included in producer timing.
+
+A consumer may be used as an external smoke-test tool, but it is not part of producer latency measurement.
+
+## 12. Benchmark matrix
+
+Keep these as separate rows:
+
+1. Pure Google Protobuf key/value encoding, no framing.
+2. Cached six-byte framing with direct in-place SerializeToArray.
+3. Cached framing with serialize-then-copy control path.
+4. Key/value encoding plus librdkafka enqueue with RD_KAFKA_MSG_F_COPY.
+5. Key/value encoding plus ownership transfer, only after correctness.
+6. Full Kafka path with acks=1.
+7. Full Kafka path with acks=all and idempotence.
+8. Full Kafka path with batching/compression.
+9. Registry lookup with an existing schema.
+10. Cold registration under a new subject.
+11. Registry unavailable during startup/recovery.
+
+Rows 1–8 must run at least 1,000,000 messages per repetition and at least 10 repetitions. Live HTTP rows should run at least 10 independent requests; they are control-plane measurements, not hot-path serializer measurements.
+
+Report median, min, max, standard deviation, bytes, operations/second, delivery errors, and queue-full retries. Add p99/p99.9 in individually timed latency runs. Record CPU pinning and architecture. Run ARM64 through OrbStack and AMD64 natively in GitHub Actions when comparing platforms; do not use emulated AMD64 values as production latency budgets.
+
+## 13. Verdict to preserve
+
+The default production path should be:
+
+~~~text
+Buf source of truth
+  -> Google C++ Protobuf with optimize_for = SPEED
+  -> caller-owned reusable buffers
+  -> direct SerializeToArray after a six-byte cached Confluent prefix
+  -> librdkafka with explicit binary key and value
+  -> Schema Registry IDs resolved once before the hot loop
+~~~
+
+Schema Registry is acceptable in this design. The steady-state cost is a small local framing header, usually low-single-digit percentage over pure Protobuf in this repository's direct comparison. The unacceptable design is a Registry HTTP lookup or registration for every message: that adds millisecond-scale control-plane latency, creates a network dependency in the trading path, and can turn a Registry incident into a producer-path incident.
+
+Start with Google Protobuf SPEED and the safe copy path. Test protobuf-c, ownership transfer, batching, and compression only as targeted alternatives. Choose another implementation only when it wins on the real message shape, compiler, CPU, allocator behavior, Kafka settings, and required delivery semantics.
+
+## 14. Definition of done
+
+- [ ] Both exact proto files exist and pass buf lint.
+- [ ] buf.gen.winning.yaml generates both C++ types in Docker.
+- [ ] Generated code builds as a Release target.
+- [ ] Key and value are both Confluent-framed Protobuf.
+- [ ] Key and value use separate subjects and the correct separate IDs.
+- [ ] Registry calls are outside the hot loop.
+- [ ] test-topic receives binary Protobuf keys and values.
+- [ ] Delivery errors are surfaced and fail the process.
+- [ ] Safe RD_KAFKA_MSG_F_COPY works before ownership transfer.
+- [ ] Docker/OrbStack commands are reproducible.
+- [ ] Benchmark mode enforces 1,000,000 x 10.
+- [ ] Reports separate pure encoding, framing, enqueue, Kafka delivery, and Registry control-plane timing.
+- [ ] A smoke test checks the first bytes and IDs of both key and value.
+- [ ] The implementation is committed and pushed only after checks pass.
+
