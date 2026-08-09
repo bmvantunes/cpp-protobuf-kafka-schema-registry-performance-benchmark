@@ -241,6 +241,60 @@ def evolution_matrix():
     return lines
 
 
+def registry_overhead_matrix():
+    baselines = {}
+    for arch, path in (("ARM64", ROOT / "raw.csv"), ("AMD64", ROOT / "amd64" / "raw.csv")):
+        rows = read(path)
+        groups = grouped(rows, ("kind", "library", "codegen", "api", "test_case"))
+        baselines[arch] = {
+            payload: median(
+                groups[("protobuf", "google_protobuf", "speed", "SerializeToArray_preallocated", payload)],
+                "ns_per_encode",
+            )
+            for payload in PAYLOADS
+        }
+
+    lines = [
+        "| Architecture | Payload | Pure Buf/Google `SPEED` preallocated ns | Cached in-place ns | In-place overhead | Framed + copy ns | Copy overhead | Serializer string ns | String overhead |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for arch, path in (("ARM64", ROOT / "schema_registry_raw.csv"), ("AMD64", ROOT / "amd64" / "schema_registry_raw.csv")):
+        groups = grouped(read(path), ("test_case", "api"))
+        for payload in PAYLOADS:
+            pure = baselines[arch][payload]
+            inplace = median(groups[(payload, "cached_id_framed_in_place")], "ns_per_encode")
+            copy = median(groups[(payload, "cached_id_framed_with_copy")], "ns_per_encode")
+            string = median(groups[(payload, "cached_serializer_string")], "ns_per_encode")
+            pct = lambda value: f"{(value / pure - 1) * 100:+.2f}%"
+            lines.append(
+                f"| {arch} | `{payload}` | {fmt(pure)} | {fmt(inplace)} | {pct(inplace)} | "
+                f"{fmt(copy)} | {pct(copy)} | {fmt(string)} | {pct(string)} |"
+            )
+    return lines
+
+
+def registry_live_matrix():
+    lines = [
+        "| Live Registry operation | ARM64 median ms | AMD64 median ms | AMD/ARM |",
+        "|---|---:|---:|---:|",
+    ]
+    for api in [
+        "registry_lookup_keepalive",
+        "cold_lookup_new_connection",
+        "cold_register",
+        "cache_miss_404",
+        "retry_failure_then_success",
+        "concurrent_registration",
+        "registry_unavailable",
+    ]:
+        values = []
+        for path in (ROOT / "schema_registry_raw.csv", ROOT / "amd64" / "schema_registry_raw.csv"):
+            rows = [row for row in read(path) if row["api"] == api and int(row["iterations"]) == 1]
+            values.append(median(rows, "elapsed_ns") / 1_000_000)
+        lines.append(f"| `{api}` | {fmt(values[0])} | {fmt(values[1])} | {ratio(values[0], values[1])} |")
+    return lines
+
+
 def main():
     arm_pure = read(ROOT / "raw.csv")
     amd_pure = read(ROOT / "amd64" / "raw.csv")
@@ -333,14 +387,41 @@ def main():
         "| Docker Schema Registry plain/TLS/auth/evolution | Complete | Complete |",
         "| Linux `perf` counters | Unavailable (`perf` exit 127) | Unavailable (`perf` exit 127) |",
         "",
-        "## Verdict for HFT/Kafka",
+        "## 10. Conclusion and recommendation",
+        "",
+        "### What should we use?",
+        "",
+        "1. **Default production choice:** keep Buf as the schema source of truth and use Buf-generated Google C++ `SPEED` types with `SerializeToArray` into a caller-owned, reused buffer. This is the best cross-architecture default, integrates cleanly with Confluent framing, and avoids choosing a different code-generation ecosystem for every payload.",
+        "2. **Use protobuf-c selectively:** `pack_preallocated` wins the ARM64 large string-heavy payload and the AMD64 decimal-string and large payloads. Use it when that specific message type is a proven latency bottleneck and the additional C API/integration trade-off is acceptable. It is not universally fastest: Google protobuf wins the compact int64 payload on both architectures.",
+        "3. **Do not use `CODE_SIZE` in the HFT hot path:** it was dramatically slower in these tests. `LITE_RUNTIME` can win a particular ARM64 row, but `SPEED` is the safer cross-architecture baseline.",
+        "4. **JSON is not the lowest-latency choice here:** yyjson is the strongest JSON option, but protobuf is smaller and faster for the tested Kafka payloads. Keep JSON for interoperability or non-hot paths unless a separate business requirement dominates.",
+        "",
+        "### Schema Registry overhead without Kafka",
+        "",
+        "This is the direct protobuf-versus-Registry-plus-protobuf comparison; Kafka producer handoff, broker acknowledgement, batching, and compression are not included in this table.",
+        "",
+    ]
+    lines += registry_overhead_matrix()
+    lines += [
+        "",
+        "The six-byte Confluent prefix itself is not the expensive part. Cached in-place framing is approximately 0%–2% overhead on the normal non-noisy rows; the copy path is generally low single-digit overhead, and the serializer-string convenience path is higher because it introduces extra string/copy behavior. Negative percentages in isolated rows are measurement noise, not a real Registry speedup.",
+        "",
+        "### Registry control-plane cost",
+        "",
+    ]
+    lines += registry_live_matrix()
+    lines += [
+        "",
+        "These live operations are millisecond-scale control-plane work. Resolve/register the schema during startup, deployment, or controlled recovery, then cache the schema ID locally. A cache miss in the producer hot loop should fail closed or use an explicit non-HFT recovery path; it should not synchronously call Registry.",
+        "",
+        "### Final HFT recommendation",
         "",
         "- Use the fastest payload-specific protobuf implementation after validating compiler/allocator behavior on production hardware.",
         "- Resolve and cache the Schema Registry ID before the producer hot path. Cached framing is low-single-digit overhead; live Registry lookup/registration is millisecond-scale and must stay off the message path.",
         "- Batching dominates the local Kafka test. `acks=0` is not durable delivery; choose `acks=1` or `acks=all` from the loss/recovery policy, then validate the choice on the real multi-node cluster.",
         "- Reuse preallocated buffers and avoid fresh output allocation in the hot loop. Shared-buffer mutex contention is visible in the concurrency table.",
         "",
-        "## Scope and reproducibility",
+        "## 11. Scope and reproducibility",
         "",
         "- ARM64: Docker under OrbStack on the local macOS arm64 host.",
         "- AMD64: native x86_64 GitHub Actions runner, Docker workflow run [31284801828](https://github.com/bmvantunes/cpp-protobuf-kafka-schema-registry-performance-benchmark/actions/runs/31284801828).",

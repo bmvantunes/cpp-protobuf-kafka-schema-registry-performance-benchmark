@@ -287,14 +287,52 @@ The Confluent protobuf prefix is six bytes: magic byte + four-byte schema ID + o
 | Docker Schema Registry plain/TLS/auth/evolution | Complete | Complete |
 | Linux `perf` counters | Unavailable (`perf` exit 127) | Unavailable (`perf` exit 127) |
 
-## Verdict for HFT/Kafka
+## 10. Conclusion and recommendation
+
+### What should we use?
+
+1. **Default production choice:** keep Buf as the schema source of truth and use Buf-generated Google C++ `SPEED` types with `SerializeToArray` into a caller-owned, reused buffer. This is the best cross-architecture default, integrates cleanly with Confluent framing, and avoids choosing a different code-generation ecosystem for every payload.
+2. **Use protobuf-c selectively:** `pack_preallocated` wins the ARM64 large string-heavy payload and the AMD64 decimal-string and large payloads. Use it when that specific message type is a proven latency bottleneck and the additional C API/integration trade-off is acceptable. It is not universally fastest: Google protobuf wins the compact int64 payload on both architectures.
+3. **Do not use `CODE_SIZE` in the HFT hot path:** it was dramatically slower in these tests. `LITE_RUNTIME` can win a particular ARM64 row, but `SPEED` is the safer cross-architecture baseline.
+4. **JSON is not the lowest-latency choice here:** yyjson is the strongest JSON option, but protobuf is smaller and faster for the tested Kafka payloads. Keep JSON for interoperability or non-hot paths unless a separate business requirement dominates.
+
+### Schema Registry overhead without Kafka
+
+This is the direct protobuf-versus-Registry-plus-protobuf comparison; Kafka producer handoff, broker acknowledgement, batching, and compression are not included in this table.
+
+| Architecture | Payload | Pure Buf/Google `SPEED` preallocated ns | Cached in-place ns | In-place overhead | Framed + copy ns | Copy overhead | Serializer string ns | String overhead |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| ARM64 | `one_string_ten_int64` | 82.52 | 83.62 | +1.33% | 85.86 | +4.05% | 91.93 | +11.40% |
+| ARM64 | `one_string_ten_decimal_strings` | 203.28 | 150.16 | -26.13% | 152.65 | -24.91% | 160.72 | -20.94% |
+| ARM64 | `ten_strings_fifty_decimal_strings` | 600.22 | 608.63 | +1.40% | 619.08 | +3.14% | 628.22 | +4.66% |
+| AMD64 | `one_string_ten_int64` | 56.13 | 57.17 | +1.85% | 59.18 | +5.44% | 65.14 | +16.05% |
+| AMD64 | `one_string_ten_decimal_strings` | 161.64 | 164.46 | +1.74% | 168.76 | +4.40% | 177.55 | +9.84% |
+| AMD64 | `ten_strings_fifty_decimal_strings` | 904.73 | 897.20 | -0.83% | 920.17 | +1.71% | 935.16 | +3.36% |
+
+The six-byte Confluent prefix itself is not the expensive part. Cached in-place framing is approximately 0%–2% overhead on the normal non-noisy rows; the copy path is generally low single-digit overhead, and the serializer-string convenience path is higher because it introduces extra string/copy behavior. Negative percentages in isolated rows are measurement noise, not a real Registry speedup.
+
+### Registry control-plane cost
+
+| Live Registry operation | ARM64 median ms | AMD64 median ms | AMD/ARM |
+|---|---:|---:|---:|
+| `registry_lookup_keepalive` | 2.16 | 2.98 | 1.38x |
+| `cold_lookup_new_connection` | 2.85 | 3.71 | 1.30x |
+| `cold_register` | 15.53 | 17.76 | 1.14x |
+| `cache_miss_404` | 2.01 | 3.04 | 1.51x |
+| `retry_failure_then_success` | 2.45 | 5.72 | 2.33x |
+| `concurrent_registration` | 70.31 | 99.27 | 1.41x |
+| `registry_unavailable` | 0.16 | 0.46 | 2.85x |
+
+These live operations are millisecond-scale control-plane work. Resolve/register the schema during startup, deployment, or controlled recovery, then cache the schema ID locally. A cache miss in the producer hot loop should fail closed or use an explicit non-HFT recovery path; it should not synchronously call Registry.
+
+### Final HFT recommendation
 
 - Use the fastest payload-specific protobuf implementation after validating compiler/allocator behavior on production hardware.
 - Resolve and cache the Schema Registry ID before the producer hot path. Cached framing is low-single-digit overhead; live Registry lookup/registration is millisecond-scale and must stay off the message path.
 - Batching dominates the local Kafka test. `acks=0` is not durable delivery; choose `acks=1` or `acks=all` from the loss/recovery policy, then validate the choice on the real multi-node cluster.
 - Reuse preallocated buffers and avoid fresh output allocation in the hot loop. Shared-buffer mutex contention is visible in the concurrency table.
 
-## Scope and reproducibility
+## 11. Scope and reproducibility
 
 - ARM64: Docker under OrbStack on the local macOS arm64 host.
 - AMD64: native x86_64 GitHub Actions runner, Docker workflow run [31284801828](https://github.com/bmvantunes/cpp-protobuf-kafka-schema-registry-performance-benchmark/actions/runs/31284801828).
