@@ -21,6 +21,7 @@ run_phase() {
 run_phase "pure protobuf and JSON" "${ROOT_DIR}/scripts/benchmark.sh"
 run_phase "compiler and C++ standard matrix" "${ROOT_DIR}/scripts/benchmark_compilers.sh"
 run_phase "exact decimal representations" "${ROOT_DIR}/scripts/benchmark_representations.sh"
+run_phase "int64 versus fixed64 wire encoding" "${ROOT_DIR}/scripts/benchmark_fixed64.sh"
 run_phase "latency and allocations" "${ROOT_DIR}/scripts/benchmark_latency.sh"
 run_phase "value distributions" "${ROOT_DIR}/scripts/benchmark_distributions.sh"
 run_phase "concurrency and contention" "${ROOT_DIR}/scripts/benchmark_concurrency.sh"

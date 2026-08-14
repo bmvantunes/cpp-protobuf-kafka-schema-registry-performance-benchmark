@@ -76,6 +76,12 @@ add_executable(async_pipeline_benchmark
   ${GOOGLE_SPEED_CC}
 )
 
+add_executable(fixed64_benchmark
+  src/fixed64_benchmark.cc
+  ${GOOGLE_SPEED_CC}
+  ${REPRESENTATIONS_CC}
+)
+
 add_executable(schema_evolution_benchmark
   src/schema_evolution_benchmark.cc
 )
@@ -167,6 +173,16 @@ target_link_libraries(async_pipeline_benchmark PRIVATE
   protobuf::libprotobuf
 )
 
+target_include_directories(fixed64_benchmark PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${GENERATED_DIR}/google_speed
+  ${GENERATED_DIR}/representations
+)
+
+target_link_libraries(fixed64_benchmark PRIVATE
+  protobuf::libprotobuf
+)
+
 target_include_directories(schema_evolution_benchmark PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -183,6 +199,7 @@ target_compile_options(latency_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(distribution_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(concurrency_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(async_pipeline_benchmark PRIVATE -O3 -march=native -DNDEBUG)
+target_compile_options(fixed64_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 target_compile_options(schema_evolution_benchmark PRIVATE -O3 -march=native -DNDEBUG)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -194,5 +211,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(distribution_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(concurrency_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(async_pipeline_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(fixed64_benchmark PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(schema_evolution_benchmark PRIVATE -Wall -Wextra -Wpedantic)
 endif()

@@ -116,6 +116,14 @@ Compare exact decimal encodings with:
 
 This preserves decimal strings as a baseline and adds fixed-scale `sint64`, fixed-width `fixed64`, and 16-byte binary coefficient representations. The integer/binary schemas declare an eight-place scale in the benchmark metadata; no floating-point conversion is used. Every row runs one million encodes per repetition for ten repetitions. The report is `results/REPRESENTATION_REPORT.md`.
 
+For a direct same-values comparison of `int64` versus `fixed64`, run:
+
+```bash
+./scripts/benchmark_fixed64.sh
+```
+
+This measures small positive values, scaled-price values, and near-maximum positive values with the same ten numeric fields and preallocated `SerializeToArray`. Results are written to `results/FIXED64_REPORT.md`. `fixed64` is not automatically faster: it may reduce varint work for large values, but it always uses eight bytes per field; small positive `int64` values are usually smaller on the wire.
+
 ## Per-encode latency and allocation phase
 
 For actual tail measurements and allocator behavior:

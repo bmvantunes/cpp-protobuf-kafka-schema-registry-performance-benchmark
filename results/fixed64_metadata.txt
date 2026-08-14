@@ -1,0 +1,5 @@
+iterations=1000000
+repetitions=10
+warmup_iterations=10000
+encoding_only=true
+comparison=identical_positive_values_int64_vs_fixed64
